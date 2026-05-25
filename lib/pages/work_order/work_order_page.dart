@@ -44,6 +44,9 @@ class _WorkOrderPageState extends State<WorkOrderPage> {
       appBar: AppBar(title: const Text('📋 服务追踪'), backgroundColor: const Color(0xFF1A1A2E), foregroundColor: Colors.white),
       body: BlocBuilder<WorkOrderBloc, WorkOrderState>(
         builder: (context, state) {
+          if (state.loading) {
+            return const Center(child: CircularProgressIndicator());
+          }
           if (state.orders.isEmpty) {
             return const Center(child: Text('暂无服务请求', style: TextStyle(color: Colors.grey)));
           }

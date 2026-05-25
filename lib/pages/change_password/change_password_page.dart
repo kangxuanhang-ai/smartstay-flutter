@@ -16,6 +16,33 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
   final _newController = TextEditingController();
   final _confirmController = TextEditingController();
 
+  void _submit() {
+    final old = _oldController.text.trim();
+    final nw = _newController.text.trim();
+    final cf = _confirmController.text.trim();
+    if (old.isEmpty || nw.isEmpty || cf.isEmpty) return;
+    if (nw.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('新密码至少6位'), backgroundColor: Colors.red));
+      return;
+    }
+    if (nw != cf) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('两次密码不一致'), backgroundColor: Colors.red));
+      return;
+    }
+    context.read<AuthBloc>().add(AuthChangePasswordRequested(
+      oldPassword: old, newPassword: nw, confirmPassword: cf));
+  }
+
+  @override
+  void dispose() {
+    _oldController.dispose();
+    _newController.dispose();
+    _confirmController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -38,29 +65,17 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                   const Text('首次登录 · 请修改密码', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                   const Text('修改完成前无法访问其他页面', style: TextStyle(fontSize: 13, color: Colors.red)),
                   const SizedBox(height: 32),
-                  _buildInput(_oldController, '旧密码（初始密码123456）'),
+                  _input(_oldController, '旧密码（初始密码123456）'),
                   const SizedBox(height: 16),
-                  _buildInput(_newController, '新密码（至少6位）'),
+                  _input(_newController, '新密码（至少6位）', onSubmit: _submit),
                   const SizedBox(height: 16),
-                  _buildInput(_confirmController, '确认新密码'),
+                  _input(_confirmController, '确认新密码', onSubmit: _submit),
                   const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 46,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.green, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(23))),
-                      onPressed: state.status == AuthStatus.loading
-                          ? null
-                          : () {
-                              context.read<AuthBloc>().add(AuthChangePasswordRequested(
-                                oldPassword: _oldController.text.trim(),
-                                newPassword: _newController.text.trim(),
-                                confirmPassword: _confirmController.text.trim(),
-                              ));
-                            },
-                      child: const Text('✅ 确认修改并进入应用', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-                    ),
-                  ),
+                  SizedBox(width: double.infinity, height: 46, child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(23))),
+                    onPressed: state.status == AuthStatus.loading ? null : _submit,
+                    child: const Text('✅ 确认修改并进入应用', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                  )),
                 ],
               ),
             ),
@@ -70,16 +85,12 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
     );
   }
 
-  Widget _buildInput(TextEditingController ctrl, String label) {
+  Widget _input(TextEditingController ctrl, String label, {VoidCallback? onSubmit}) {
     return TextField(
       controller: ctrl,
       obscureText: true,
-      decoration: InputDecoration(
-        labelText: label,
-        border: const OutlineInputBorder(),
-        filled: true,
-        fillColor: Colors.white,
-      ),
+      decoration: InputDecoration(labelText: label, border: const OutlineInputBorder(), filled: true, fillColor: Colors.white),
+      onSubmitted: (_) => onSubmit?.call(),
     );
   }
 }

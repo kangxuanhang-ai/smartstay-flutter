@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'blocs/auth/auth_bloc.dart';
@@ -13,8 +14,11 @@ import 'pages/ai_chat/ai_chat_page.dart';
 import 'pages/work_order/work_order_page.dart';
 import 'pages/bill/bill_page.dart';
 
+const _anonymousRoutes = ['/home', '/map', '/facility'];
+
 class AppRouter {
   final AuthBloc authBloc;
+  String? _pendingRedirect;
 
   AppRouter(this.authBloc);
 
@@ -24,8 +28,13 @@ class AppRouter {
       final auth = authBloc.state;
       final loc = state.uri.toString();
 
+      if (_anonymousRoutes.any((r) => loc.startsWith(r))) return null;
+
       if (auth.status == AuthStatus.unauthenticated || auth.status == AuthStatus.initial) {
-        if (loc != '/login') return '/login';
+        if (loc != '/login') {
+          _pendingRedirect = loc;
+          return '/login';
+        }
         return null;
       }
 
@@ -34,7 +43,11 @@ class AppRouter {
         return null;
       }
 
-      if (loc == '/login' || loc == '/change-password') return '/home';
+      if (loc == '/login' || loc == '/change-password') {
+        final target = _pendingRedirect ?? '/home';
+        _pendingRedirect = null;
+        return target;
+      }
       return null;
     },
     routes: [
@@ -56,12 +69,12 @@ class AppRouter {
         },
         routes: [
           GoRoute(path: '/home', builder: (_, __) => const HomePage()),
-          GoRoute(path: '/map', builder: (_, __) => const MapPage()),
-          GoRoute(path: '/facility', builder: (_, __) => const FacilityPage()),
           GoRoute(path: '/room-control', builder: (_, __) => const RoomControlPage()),
           GoRoute(path: '/ai-chat', builder: (_, __) => const AIChatPage()),
           GoRoute(path: '/work-orders', builder: (_, __) => const WorkOrderPage()),
           GoRoute(path: '/bill', builder: (_, __) => const BillPage()),
+          GoRoute(path: '/map', builder: (_, __) => const MapPage()),
+          GoRoute(path: '/facility', builder: (_, __) => const FacilityPage()),
         ],
       ),
     ],
@@ -79,7 +92,15 @@ class AppRouter {
 
 class _AuthListenable extends ChangeNotifier {
   final AuthBloc bloc;
+  StreamSubscription? _sub;
+
   _AuthListenable(this.bloc) {
-    bloc.stream.listen((_) => notifyListeners());
+    _sub = bloc.stream.listen((_) => notifyListeners());
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
   }
 }

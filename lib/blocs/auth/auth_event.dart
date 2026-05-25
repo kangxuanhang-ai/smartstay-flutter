@@ -1,3 +1,5 @@
+class AuthBootstrapRequested {}
+
 class AuthLoginRequested {
   final String idCard;
   final String password;

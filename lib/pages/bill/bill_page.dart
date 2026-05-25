@@ -13,36 +13,71 @@ class _BillPageState extends State<BillPage> {
   final _taxCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   bool _submitting = false;
+  Map<String, dynamic>? _billData;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchBill();
+  }
+
+  Future<void> _fetchBill() async {
+    try {
+      final resp = await ApiClient().get('/api/orders/current');
+      final orderId = resp.data['id'];
+      final bill = await ApiClient().get('/api/orders/$orderId/bill');
+      setState(() => _billData = bill.data as Map<String, dynamic>);
+    } catch (_) {}
+  }
 
   Future<void> _submitInvoice() async {
+    if (_companyCtrl.text.trim().isEmpty || _taxCtrl.text.trim().isEmpty || _emailCtrl.text.trim().isEmpty) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('请填写所有发票信息'), backgroundColor: Colors.red));
+      return;
+    }
     setState(() => _submitting = true);
     try {
-      await ApiClient().put('/api/orders/current/invoice', data: {
+      final resp = await ApiClient().get('/api/orders/current');
+      await ApiClient().put('/api/orders/${resp.data['id']}/invoice', data: {
         'company_name': _companyCtrl.text.trim(),
         'tax_id': _taxCtrl.text.trim(),
         'email': _emailCtrl.text.trim(),
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('发票信息已保存'), backgroundColor: Colors.green),
-        );
-        _companyCtrl.clear();
-        _taxCtrl.clear();
-        _emailCtrl.clear();
+          const SnackBar(content: Text('发票信息已保存'), backgroundColor: Colors.green));
+        _companyCtrl.clear(); _taxCtrl.clear(); _emailCtrl.clear();
       }
     } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('保存失败，请检查订单状态'), backgroundColor: Colors.red),
-        );
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('保存失败'), backgroundColor: Colors.red));
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
   }
 
   @override
+  void dispose() {
+    _companyCtrl.dispose();
+    _taxCtrl.dispose();
+    _emailCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (_billData == null) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final bill = _billData!;
+    final roomRate = (bill['room_rate'] as num?)?.toInt() ?? 0;
+    final grandTotal = (bill['grand_total'] as num?)?.toInt() ?? 0;
+    final consumptions = (bill['consumptions'] as List?) ?? [];
+
     return Scaffold(
       appBar: AppBar(title: const Text('📊 挂房账'), backgroundColor: const Color(0xFF1A1A2E), foregroundColor: Colors.white),
       body: ListView(
@@ -51,51 +86,45 @@ class _BillPageState extends State<BillPage> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(color: const Color(0xFF1677FF), borderRadius: BorderRadius.circular(10)),
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('押金剩余比例', style: TextStyle(color: Colors.white70, fontSize: 13)),
-                  Text('82%', style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
-                ]),
-                Text('💰 ¥2,460 / ¥3,000', style: TextStyle(color: Colors.white70, fontSize: 13)),
-              ],
-            ),
+            child: const Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('押金剩余比例', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                Text('82%', style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
+              ]),
+              Text('💰 ¥2,460 / ¥3,000', style: TextStyle(color: Colors.white70, fontSize: 13)),
+            ]),
           ),
           const SizedBox(height: 16),
           const Text('消费明细', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
-          _buildRow('房费 ¥300 × 2天', '房费', '¥600'),
-          _buildRow('小冰箱·可乐', 'minibar', '¥8'),
-          _buildRow('中餐厅·红烧肉套餐', 'restaurant', '¥128'),
+          _buildRow('房费', '¥${(roomRate / 100).toStringAsFixed(0)}', isMain: true),
+          ...consumptions.map((c) => _buildRow(c['item_name'] ?? '', '¥${(c['amount'] as num?)?.toInt() ?? 0 ~/ 100}')),
           const Divider(),
-          _buildRow('合计', '', '¥736', isTotal: true),
+          _buildRow('合计', '¥${(grandTotal / 100).toStringAsFixed(0)}', isTotal: true),
           const SizedBox(height: 24),
           const Text('📄 电子发票预登记', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
-          TextField(controller: _companyCtrl, decoration: const InputDecoration(labelText: '公司抬头', hintText: '请输入公司全称', border: OutlineInputBorder())),
-          const SizedBox(height: 12),
-          TextField(controller: _taxCtrl, decoration: const InputDecoration(labelText: '企业税号', hintText: '请输入税号', border: OutlineInputBorder())),
-          const SizedBox(height: 12),
-          TextField(controller: _emailCtrl, decoration: const InputDecoration(labelText: '接收邮箱', hintText: '请输入邮箱', border: OutlineInputBorder())),
-          const SizedBox(height: 12),
+          ...[('公司抬头', '请输入公司全称'), ('企业税号', '请输入税号'), ('接收邮箱', '请输入邮箱')].map((e) => Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: TextField(controller: e.$1 == '公司抬头' ? _companyCtrl : e.$1 == '企业税号' ? _taxCtrl : _emailCtrl,
+              decoration: InputDecoration(labelText: e.$1, hintText: e.$2, border: const OutlineInputBorder())),
+          )),
+          const SizedBox(height: 8),
           SizedBox(width: double.infinity, height: 44, child: ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1677FF), foregroundColor: Colors.white),
             onPressed: _submitting ? null : _submitInvoice,
-            child: _submitting ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                : const Text('保存发票预登记信息'),
+            child: _submitting ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Text('保存发票预登记信息'),
           )),
         ],
       ),
     );
   }
 
-  Widget _buildRow(String item, String category, String amount, {bool isTotal = false}) {
+  Widget _buildRow(String item, String amount, {bool isMain = false, bool isTotal = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(children: [
-        Expanded(flex: 3, child: Text(item, style: TextStyle(fontWeight: isTotal ? FontWeight.bold : FontWeight.normal))),
-        Expanded(flex: 2, child: Text(category, style: const TextStyle(fontSize: 12, color: Colors.grey))),
+        Expanded(child: Text(item, style: TextStyle(fontWeight: isTotal ? FontWeight.bold : FontWeight.normal, fontSize: isMain ? 14 : 13))),
         Text(amount, style: TextStyle(fontWeight: FontWeight.w600, color: isTotal ? Colors.red : const Color(0xFF262626), fontSize: isTotal ? 20 : 14)),
       ]),
     );

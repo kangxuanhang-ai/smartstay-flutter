@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'blocs/auth/auth_bloc.dart';
+import 'blocs/auth/auth_event.dart';
 import 'blocs/chat/chat_bloc.dart';
 import 'blocs/room/room_bloc.dart';
 import 'blocs/work_order/work_order_bloc.dart';
 import 'app.dart';
 
 void main() {
-  final authBloc = AuthBloc();
+  final authBloc = AuthBloc()..add(AuthBootstrapRequested());
   runApp(MultiBlocProvider(
     providers: [
       BlocProvider.value(value: authBloc),

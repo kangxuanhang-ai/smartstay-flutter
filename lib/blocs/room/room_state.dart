@@ -13,6 +13,7 @@ class RoomState {
   final bool acCool; // true = cool, false = heat
 
   final bool loading;
+  final String? error;
 
   const RoomState({
     this.roomNumber = '',
@@ -27,21 +28,13 @@ class RoomState {
     this.acTemp = 24,
     this.acCool = true,
     this.loading = false,
+    this.error,
   });
 
   RoomState copyWith({
-    String? roomNumber,
-    String? roomType,
-    double? basePrice,
-    double? currentPrice,
-    String? roomStatus,
-    bool? livingLight,
-    bool? bedroomLight,
-    bool? bedsideLight,
-    int? curtain,
-    int? acTemp,
-    bool? acCool,
-    bool? loading,
+    String? roomNumber, String? roomType, double? basePrice, double? currentPrice, String? roomStatus,
+    bool? livingLight, bool? bedroomLight, bool? bedsideLight,
+    int? curtain, int? acTemp, bool? acCool, bool? loading, String? error,
   }) {
     return RoomState(
       roomNumber: roomNumber ?? this.roomNumber,
@@ -56,6 +49,7 @@ class RoomState {
       acTemp: acTemp ?? this.acTemp,
       acCool: acCool ?? this.acCool,
       loading: loading ?? this.loading,
+      error: error,
     );
   }
 }

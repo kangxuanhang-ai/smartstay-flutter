@@ -27,7 +27,11 @@ class _RoomControlPageState extends State<RoomControlPage> {
           appBar: AppBar(title: Text('💡 智能控房 · ${state.roomNumber}'), backgroundColor: const Color(0xFF1A1A2E), foregroundColor: Colors.white),
           body: loading
               ? const Center(child: CircularProgressIndicator())
-              : ListView(
+              : Column(children: [
+                  if (state.error != null)
+                    Container(width: double.infinity, padding: const EdgeInsets.all(10), color: Colors.red.shade50,
+                      child: Text('⚠️ ${state.error}', style: const TextStyle(color: Colors.red), textAlign: TextAlign.center)),
+                  Expanded(child: ListView(
                   padding: const EdgeInsets.all(16),
                   children: [
                     _LightSwitch(label: '客厅灯', value: state.livingLight, onToggle: () => context.read<RoomBloc>().add(const LightToggled('living_light'))),
@@ -60,6 +64,9 @@ class _RoomControlPageState extends State<RoomControlPage> {
                     const Text('⏱️ 所有控件挂载 500ms 防抖', textAlign: TextAlign.center, style: TextStyle(fontSize: 11, color: Colors.orange)),
                   ],
                 ),
+              ),
+            ],
+          ),
         );
       },
     );

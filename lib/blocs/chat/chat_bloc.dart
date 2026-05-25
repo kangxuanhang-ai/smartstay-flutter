@@ -10,10 +10,15 @@ import 'chat_state.dart';
 class ChatBloc extends Bloc<Object, ChatState> {
   ChatBloc() : super(const ChatState()) {
     on<ChatMessageSent>(_onSend);
+    on<ChatSSETextReceived>(_onText);
+    on<ChatSSECardReceived>(_onCard);
+    on<ChatSSECompleted>(_onDone);
   }
 
   final _api = ApiClient();
   StreamSubscription<SSEEvent>? _sseSub;
+  String _aiMsgId = '';
+  final List<Map<String, dynamic>> _cards = [];
 
   Future<void> _onSend(ChatMessageSent event, Emitter<ChatState> emit) async {
     final userMsg = ChatMessage(
@@ -22,11 +27,9 @@ class ChatBloc extends Bloc<Object, ChatState> {
       text: event.message,
     );
 
-    final messages = [...state.messages, userMsg];
-    final aiMsgId = 'ai_${DateTime.now().millisecondsSinceEpoch}';
-    final aiMsg = ChatMessage(id: aiMsgId, isUser: false);
-    messages.add(aiMsg);
-
+    _aiMsgId = 'ai_${DateTime.now().millisecondsSinceEpoch}';
+    _cards.clear();
+    final messages = [...state.messages, userMsg, ChatMessage(id: _aiMsgId, isUser: false)];
     emit(ChatState(messages: messages, isStreaming: true));
 
     try {
@@ -37,53 +40,53 @@ class ChatBloc extends Bloc<Object, ChatState> {
       );
 
       final parser = SSEParser();
-      final cards = <Map<String, dynamic>>[];
-
       _sseSub = parser.stream.listen((sseEvent) {
-        final idx = state.messages.indexWhere((m) => m.id == aiMsgId);
-        if (idx == -1) return;
-
-        final updatedMessages = List<ChatMessage>.from(state.messages);
-
         if (sseEvent.type == 'text' && sseEvent.data != null) {
-          final currentText = updatedMessages[idx].text;
-          updatedMessages[idx] = ChatMessage(
-            id: aiMsgId,
-            isUser: false,
-            text: currentText + (sseEvent.data!['content'] ?? ''),
-            cards: cards,
-          );
+          add(ChatSSETextReceived(sseEvent.data!['content'] as String? ?? ''));
         } else if (sseEvent.type == 'card' && sseEvent.data != null) {
-          cards.add(sseEvent.data!['card'] as Map<String, dynamic>);
-          updatedMessages[idx] = ChatMessage(
-            id: aiMsgId,
-            isUser: false,
-            text: updatedMessages[idx].text,
-            cards: List.from(cards),
-          );
+          add(ChatSSECardReceived(sseEvent.data!['card'] as Map<String, dynamic>));
         } else if (sseEvent.type == 'done') {
-          updatedMessages[idx] = ChatMessage(
-            id: aiMsgId,
-            isUser: false,
-            text: updatedMessages[idx].text,
-            cards: List.from(cards),
-          );
-          emit(ChatState(messages: updatedMessages, isStreaming: false));
-          return;
+          add(ChatSSECompleted());
         }
-
-        emit(ChatState(messages: updatedMessages, isStreaming: true));
       });
 
       final stream = resp.data.stream as Stream<List<int>>;
       stream.transform(const Utf8Decoder()).listen(
         (chunk) => parser.addChunk(chunk),
-        onError: (_) => emit(state.copyWith(isStreaming: false, error: '连接中断')),
+        onError: (_) => add(ChatSSECompleted()),
         onDone: () => parser.close(),
       );
     } catch (_) {
       emit(state.copyWith(isStreaming: false, error: '发送失败'));
     }
+  }
+
+  void _onText(ChatSSETextReceived event, Emitter<ChatState> emit) {
+    final idx = state.messages.indexWhere((m) => m.id == _aiMsgId);
+    if (idx == -1) return;
+    final msgs = List<ChatMessage>.from(state.messages);
+    msgs[idx] = ChatMessage(id: _aiMsgId, isUser: false, text: msgs[idx].text + event.text, cards: List.from(_cards));
+    emit(ChatState(messages: msgs, isStreaming: true));
+  }
+
+  void _onCard(ChatSSECardReceived event, Emitter<ChatState> emit) {
+    _cards.add(event.card);
+    final idx = state.messages.indexWhere((m) => m.id == _aiMsgId);
+    if (idx == -1) return;
+    final msgs = List<ChatMessage>.from(state.messages);
+    msgs[idx] = ChatMessage(id: _aiMsgId, isUser: false, text: msgs[idx].text, cards: List.from(_cards));
+    emit(ChatState(messages: msgs, isStreaming: true));
+  }
+
+  void _onDone(ChatSSECompleted event, Emitter<ChatState> emit) {
+    final idx = state.messages.indexWhere((m) => m.id == _aiMsgId);
+    if (idx == -1) {
+      emit(state.copyWith(isStreaming: false));
+      return;
+    }
+    final msgs = List<ChatMessage>.from(state.messages);
+    msgs[idx] = ChatMessage(id: _aiMsgId, isUser: false, text: msgs[idx].text, cards: List.from(_cards));
+    emit(ChatState(messages: msgs, isStreaming: false));
   }
 
   @override
