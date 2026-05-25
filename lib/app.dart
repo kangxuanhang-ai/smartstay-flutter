@@ -28,16 +28,16 @@ class AppRouter {
       final auth = authBloc.state;
       final loc = state.uri.toString();
 
-      // 1. 账户安全最高优先级：强制改密阻断一切（含匿名路由）
+      // 1. 账户安全最高优先级：强制改密刚性阻断一切（含匿名白名单）
       if (auth.status == AuthStatus.passwordChangeRequired) {
         if (loc != '/change-password') return '/change-password';
         return null;
       }
 
-      // 2. 健康状态或未登录态，享受匿名白名单放行
+      // 2. 健康状态或免登用户，享受匿名白名单放行
       if (_anonymousRoutes.any((r) => loc.startsWith(r))) return null;
 
-      // 3. 未登录阻断并缓存目标
+      // 3. 未登录用户精准强刷阻断，并动态缓存目标路由
       if (auth.status == AuthStatus.unauthenticated || auth.status == AuthStatus.initial) {
         if (loc != '/login') {
           _pendingRedirect = loc;
@@ -46,11 +46,14 @@ class AppRouter {
         return null;
       }
 
-      // 4. 已登录用户反向阻断登录/改密页
-      if (loc == '/login' || loc == '/change-password') {
-        final target = _pendingRedirect ?? '/home';
-        _pendingRedirect = null;
-        return target;
+      // 4. 纯净重定向闸：只有真正已登录状态，才允许消耗重定向缓存并放行
+      // loading 等中间态安全 fall through 到最后的 return null，原地等待登录 API 成功返回后再触发跳转
+      if (auth.status == AuthStatus.authenticated) {
+        if (loc == '/login' || loc == '/change-password') {
+          final target = _pendingRedirect ?? '/home';
+          _pendingRedirect = null;
+          return target;
+        }
       }
       return null;
     },

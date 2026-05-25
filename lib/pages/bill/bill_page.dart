@@ -132,7 +132,7 @@ class _BillPageState extends State<BillPage> {
           const Text('消费明细', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
           _buildRow('房费', '¥${(roomRate / 100).toStringAsFixed(0)}', isMain: true),
-          ...consumptions.map((c) => _buildRow(c['item_name'] ?? '', '¥${(c['amount'] as num?)?.toInt() ?? 0 ~/ 100}')),
+          ...consumptions.map((c) => _buildRow(c['item_name'] ?? '', '¥${((c['amount'] as num?)?.toInt() ?? 0) ~/ 100}')),
           const Divider(),
           _buildRow('合计', '¥${(grandTotal / 100).toStringAsFixed(0)}', isTotal: true),
           const SizedBox(height: 24),
