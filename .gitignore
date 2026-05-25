@@ -13,6 +13,11 @@ web/build/
 # Dependencies
 pubspec.lock
 
+# Config (copy config.example.dart → config.dart)
+lib/core/config.dart
+
 # OS
+.DS_Store
+Thumbs.db
 .DS_Store
 Thumbs.db
