@@ -47,6 +47,13 @@ class _WorkOrderPageState extends State<WorkOrderPage> {
           if (state.loading) {
             return const Center(child: CircularProgressIndicator());
           }
+          if (state.error != null) {
+            return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Text(state.error!, style: const TextStyle(color: Colors.red)),
+              const SizedBox(height: 16),
+              ElevatedButton(onPressed: () => context.read<WorkOrderBloc>().add(WorkOrdersFetched()), child: const Text('重试')),
+            ]));
+          }
           if (state.orders.isEmpty) {
             return const Center(child: Text('暂无服务请求', style: TextStyle(color: Colors.grey)));
           }

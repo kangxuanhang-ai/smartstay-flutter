@@ -62,7 +62,7 @@ class AuthBloc extends Bloc<Object, AuthState> {
       });
       emit(state.copyWith(status: AuthStatus.authenticated, isFirstLogin: false));
     } catch (_) {
-      emit(state.copyWith(error: '密码修改失败'));
+      emit(state.copyWith(status: AuthStatus.passwordChangeRequired, error: '密码修改失败'));
     }
   }
 

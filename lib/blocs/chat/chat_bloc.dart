@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -12,6 +13,7 @@ class ChatBloc extends Bloc<Object, ChatState> {
   }
 
   final _api = ApiClient();
+  StreamSubscription? _httpSub;
 
   Future<void> _onSend(ChatMessageSent event, Emitter<ChatState> emit) async {
     final userMsg = ChatMessage(
@@ -35,11 +37,16 @@ class ChatBloc extends Bloc<Object, ChatState> {
       final parser = SSEParser();
       final stream = resp.data.stream as Stream<List<int>>;
 
-      stream.transform(const Utf8Decoder()).listen(
+      var streamError = false;
+      final httpSub = stream.transform(const Utf8Decoder()).listen(
         (chunk) => parser.addChunk(chunk),
-        onError: (_) => emit(state.copyWith(isStreaming: false, error: '连接中断')),
+        onError: (_) {
+          streamError = true;
+          parser.close();
+        },
         onDone: () => parser.close(),
       );
+      _httpSub = httpSub;
 
       await emit.forEach<SSEEvent>(
         parser.stream,
@@ -76,8 +83,21 @@ class ChatBloc extends Bloc<Object, ChatState> {
           return state;
         },
       );
+      // 无论流如何结束，重置 streaming
+      if (state.isStreaming) {
+        emit(state.copyWith(isStreaming: false));
+      }
+      if (streamError) {
+        emit(state.copyWith(isStreaming: false, error: '连接中断'));
+      }
     } catch (_) {
       emit(state.copyWith(isStreaming: false, error: '发送失败'));
     }
+  }
+
+  @override
+  Future<void> close() {
+    _httpSub?.cancel();
+    return super.close();
   }
 }

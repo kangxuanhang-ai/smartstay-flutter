@@ -26,7 +26,7 @@ class WorkOrderBloc extends Bloc<Object, WorkOrderState> {
       )).toList();
       emit(WorkOrderState(orders: orders));
     } catch (_) {
-      emit(state.copyWith(loading: false));
+      emit(state.copyWith(loading: false, error: '加载工单数据失败'));
     }
   }
 

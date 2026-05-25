@@ -40,7 +40,7 @@ class AppRouter {
       // 3. 未登录用户精准强刷阻断，并动态缓存目标路由
       if (auth.status == AuthStatus.unauthenticated || auth.status == AuthStatus.initial) {
         if (loc != '/login') {
-          _pendingRedirect = loc;
+          _pendingRedirect = loc == '/' ? null : loc;
           return '/login';
         }
         return null;

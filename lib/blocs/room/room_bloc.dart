@@ -34,7 +34,7 @@ class RoomBloc extends Bloc<Object, RoomState> {
         acCool: devices['ac_mode'] != 'heat',
       ));
     } catch (_) {
-      emit(state.copyWith(loading: false));
+      emit(state.copyWith(loading: false, error: '加载房间数据失败'));
     }
   }
 
@@ -74,5 +74,11 @@ class RoomBloc extends Bloc<Object, RoomState> {
         emit(state.copyWith(error: '网络请求失败'));
       }
     });
+  }
+
+  @override
+  Future<void> close() {
+    for (final t in _debounceTimers.values) { t.cancel(); }
+    return super.close();
   }
 }

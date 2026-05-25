@@ -17,7 +17,9 @@ class _AIChatPageState extends State<AIChatPage> {
   void _send() {
     final text = _textCtrl.text.trim();
     if (text.isEmpty) return;
-    context.read<ChatBloc>().add(ChatMessageSent(text));
+    final bloc = context.read<ChatBloc>();
+    if (bloc.state.isStreaming) return;
+    bloc.add(ChatMessageSent(text));
     _textCtrl.clear();
   }
 
@@ -88,5 +90,11 @@ class _AIChatPageState extends State<AIChatPage> {
         ],
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _textCtrl.dispose();
+    super.dispose();
   }
 }

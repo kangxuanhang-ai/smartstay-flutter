@@ -19,13 +19,15 @@ class WOrder {
 class WorkOrderState {
   final List<WOrder> orders;
   final bool loading;
+  final String? error;
 
-  const WorkOrderState({this.orders = const [], this.loading = false});
+  const WorkOrderState({this.orders = const [], this.loading = false, this.error});
 
-  WorkOrderState copyWith({List<WOrder>? orders, bool? loading}) {
+  WorkOrderState copyWith({List<WOrder>? orders, bool? loading, String? error}) {
     return WorkOrderState(
       orders: orders ?? this.orders,
       loading: loading ?? this.loading,
+      error: error,
     );
   }
 }

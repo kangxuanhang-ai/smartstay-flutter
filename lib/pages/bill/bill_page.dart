@@ -13,6 +13,8 @@ class _BillPageState extends State<BillPage> {
   final _taxCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   bool _submitting = false;
+  bool _loading = false;
+  String? _error;
   Map<String, dynamic>? _billData;
 
   @override
@@ -22,12 +24,22 @@ class _BillPageState extends State<BillPage> {
   }
 
   Future<void> _fetchBill() async {
+    if (_loading) return;
+    _loading = true;
     try {
       final resp = await ApiClient().get('/api/orders/current');
-      final orderId = resp.data['id'];
+      final orderId = resp.data['id'] as String?;
+      if (orderId == null) {
+        setState(() => _error = '未找到活跃订单');
+        return;
+      }
       final bill = await ApiClient().get('/api/orders/$orderId/bill');
       setState(() => _billData = bill.data as Map<String, dynamic>);
-    } catch (_) {}
+    } catch (_) {
+      setState(() => _error = '加载账单失败，请稍后重试');
+    } finally {
+      _loading = false;
+    }
   }
 
   Future<void> _submitInvoice() async {
@@ -67,6 +79,20 @@ class _BillPageState extends State<BillPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (_loading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    if (_error != null) {
+      return Scaffold(
+        body: Center(
+          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Text(_error!, style: const TextStyle(fontSize: 16, color: Colors.red)),
+            const SizedBox(height: 16),
+            ElevatedButton(onPressed: () { setState(() { _error = null; }); _fetchBill(); }, child: const Text('重试')),
+          ]),
+        ),
+      );
+    }
     if (_billData == null) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
@@ -132,9 +158,9 @@ class _BillPageState extends State<BillPage> {
           const Text('消费明细', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
           _buildRow('房费', '¥${(roomRate / 100).toStringAsFixed(0)}', isMain: true),
-          ...consumptions.map((c) => _buildRow(c['item_name'] ?? '', '¥${((c['amount'] as num?)?.toInt() ?? 0) ~/ 100}')),
+          ...consumptions.map((c) => _buildRow(c['item_name'] ?? '', '¥${(((c['amount'] as num?)?.toInt() ?? 0) / 100).toStringAsFixed(2)}')),
           const Divider(),
-          _buildRow('合计', '¥${(grandTotal / 100).toStringAsFixed(0)}', isTotal: true),
+          _buildRow('合计', '¥${(grandTotal / 100).toStringAsFixed(2)}', isTotal: true),
           const SizedBox(height: 24),
           const Text('📄 电子发票预登记', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),

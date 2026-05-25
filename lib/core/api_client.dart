@@ -102,14 +102,20 @@ class ApiClient {
   Future<void> _refreshAccessToken() async {
     final resp = await Dio(BaseOptions(baseUrl: AppConfig.baseUrl))
         .post('/api/auth/refresh', data: {'refresh_token': _refreshToken});
-    _accessToken = resp.data['access_token'];
-    _refreshToken = resp.data['refresh_token'];
-    if (kIsWeb) {
-      _memoryFallback[_accessKey] = _accessToken!;
-      _memoryFallback[_refreshKey] = _refreshToken!;
+    final access = resp.data['access_token'] as String?;
+    final refresh = resp.data['refresh_token'] as String?;
+    if (access != null && refresh != null) {
+      _accessToken = access;
+      _refreshToken = refresh;
+      if (kIsWeb) {
+        _memoryFallback[_accessKey] = access;
+        _memoryFallback[_refreshKey] = refresh;
+      } else {
+        await _storage.write(key: _accessKey, value: access);
+        await _storage.write(key: _refreshKey, value: refresh);
+      }
     } else {
-      await _storage.write(key: _accessKey, value: _accessToken);
-      await _storage.write(key: _refreshKey, value: _refreshToken);
+      await clearTokens();
     }
     _isRefreshing = false;
   }

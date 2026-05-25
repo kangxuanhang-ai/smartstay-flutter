@@ -39,8 +39,9 @@ class SSEParser {
       } catch (_) {
         _failCount++;
         if (_failCount >= 10) {
-          _buffer = '';
           _failCount = 0;
+          // 只丢弃当前行，保留剩余 buffer
+          continue;
         } else {
           _buffer = line + '\n' + _buffer;
           break;
