@@ -13,7 +13,7 @@ class ApiClient {
   String? _accessToken;
   String? _refreshToken;
   bool _isRefreshing = false;
-  final List<RequestOptions> _pendingQueue = [];
+  final List<({RequestOptions options, ErrorInterceptorHandler handler})> _failedQueue = [];
 
   static const _accessKey = 'access_token';
   static const _refreshKey = 'refresh_token';
@@ -38,20 +38,24 @@ class ApiClient {
           await _refreshAccessToken();
           final token = _accessToken;
           req.headers['Authorization'] = 'Bearer $token';
-          for (final r in _pendingQueue) {
-            r.headers['Authorization'] = 'Bearer $token';
+          for (final entry in _failedQueue) {
+            entry.options.headers['Authorization'] = 'Bearer $token';
+            entry.handler.resolve(await dio.fetch(entry.options));
           }
-          _pendingQueue.clear();
+          _failedQueue.clear();
           final resp = await dio.fetch(req);
           return handler.resolve(resp);
         } catch (_) {
-          _pendingQueue.clear();
+          for (final entry in _failedQueue) {
+            entry.handler.next(DioException(requestOptions: entry.options));
+          }
+          _failedQueue.clear();
           _isRefreshing = false;
           await clearTokens();
           return handler.next(error);
         }
       } else {
-        _pendingQueue.add(req);
+        _failedQueue.add((options: req, handler: handler));
         return;
       }
     }

@@ -86,12 +86,12 @@ class _BillPageState extends State<BillPage> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(color: const Color(0xFF1677FF), borderRadius: BorderRadius.circular(10)),
-            child: const Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('押金剩余比例', style: TextStyle(color: Colors.white70, fontSize: 13)),
-                Text('82%', style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
+                const Text('账单合计', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                Text('¥${(grandTotal / 100).toStringAsFixed(0)}', style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
               ]),
-              Text('💰 ¥2,460 / ¥3,000', style: TextStyle(color: Colors.white70, fontSize: 13)),
+              Text('💰 含${consumptions.length}笔消费', style: const TextStyle(color: Colors.white70, fontSize: 13)),
             ]),
           ),
           const SizedBox(height: 16),

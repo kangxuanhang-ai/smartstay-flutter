@@ -8,8 +8,9 @@ class SSEEvent {
 }
 
 class SSEParser {
-  String _buffer = '';
   final StreamController<SSEEvent> _controller = StreamController<SSEEvent>.broadcast();
+  String _buffer = '';
+  int _failCount = 0;
 
   Stream<SSEEvent> get stream => _controller.stream;
 
@@ -26,6 +27,7 @@ class SSEParser {
 
       final jsonStr = line.substring(6);
       try {
+        _failCount = 0;
         final data = jsonDecode(jsonStr) as Map<String, dynamic>;
         final type = data['type'] as String?;
         if (type == 'done') {
@@ -34,9 +36,14 @@ class SSEParser {
         }
         _controller.add(SSEEvent(type, data));
       } catch (_) {
-        // 不完整 JSON，等待更多数据（恢复原行到 buffer 开头）
-        _buffer = line + '\n' + _buffer;
-        break;
+        _failCount++;
+        if (_failCount >= 10) {
+          _buffer = '';
+          _failCount = 0;
+        } else {
+          _buffer = line + '\n' + _buffer;
+          break;
+        }
       }
     }
   }
