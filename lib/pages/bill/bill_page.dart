@@ -85,14 +85,48 @@ class _BillPageState extends State<BillPage> {
         children: [
           Container(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(color: const Color(0xFF1677FF), borderRadius: BorderRadius.circular(10)),
-            child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('账单合计', style: TextStyle(color: Colors.white70, fontSize: 13)),
-                Text('¥${(grandTotal / 100).toStringAsFixed(0)}', style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
-              ]),
-              Text('💰 含${consumptions.length}笔消费', style: const TextStyle(color: Colors.white70, fontSize: 13)),
-            ]),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF1677FF), Color(0xFF0050B3)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [BoxShadow(color: const Color(0xFF1677FF).withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))],
+            ),
+            child: Column(
+              children: [
+                Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                  Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    const Text('账单实时总计', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                    const SizedBox(height: 4),
+                    Text('¥${(grandTotal / 100).toStringAsFixed(2)}', style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold)),
+                  ]),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(color: Colors.white.withOpacity(0.21), borderRadius: BorderRadius.circular(12)),
+                    child: Text('📊 共 ${consumptions.length} 笔消费', style: const TextStyle(color: Colors.white, fontSize: 12)),
+                  ),
+                ]),
+                const SizedBox(height: 10),
+                const Divider(color: Color(0x33FFFFFF), height: 1),
+                const SizedBox(height: 4),
+                Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                  Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    const Text('信用预授权剩余押金比例', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${((300000 - grandTotal) / 300000 * 100).clamp(0, 100).toStringAsFixed(1)}%',
+                      style: const TextStyle(color: Colors.greenAccent, fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                  ]),
+                  Text(
+                    '可用额度: ¥${((300000 - grandTotal) / 100).toStringAsFixed(0)} / ¥3,000',
+                    style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500),
+                  ),
+                ]),
+              ],
+            ),
           ),
           const SizedBox(height: 16),
           const Text('消费明细', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),

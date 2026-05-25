@@ -28,8 +28,16 @@ class AppRouter {
       final auth = authBloc.state;
       final loc = state.uri.toString();
 
+      // 1. 账户安全最高优先级：强制改密阻断一切（含匿名路由）
+      if (auth.status == AuthStatus.passwordChangeRequired) {
+        if (loc != '/change-password') return '/change-password';
+        return null;
+      }
+
+      // 2. 健康状态或未登录态，享受匿名白名单放行
       if (_anonymousRoutes.any((r) => loc.startsWith(r))) return null;
 
+      // 3. 未登录阻断并缓存目标
       if (auth.status == AuthStatus.unauthenticated || auth.status == AuthStatus.initial) {
         if (loc != '/login') {
           _pendingRedirect = loc;
@@ -38,11 +46,7 @@ class AppRouter {
         return null;
       }
 
-      if (auth.status == AuthStatus.passwordChangeRequired) {
-        if (loc != '/change-password') return '/change-password';
-        return null;
-      }
-
+      // 4. 已登录用户反向阻断登录/改密页
       if (loc == '/login' || loc == '/change-password') {
         final target = _pendingRedirect ?? '/home';
         _pendingRedirect = null;

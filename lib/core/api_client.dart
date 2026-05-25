@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'config.dart';
 
@@ -8,7 +9,8 @@ class ApiClient {
   factory ApiClient() => _instance;
 
   late final Dio dio;
-  final _storage = const FlutterSecureStorage();
+  final FlutterSecureStorage _storage;
+  final Map<String, String> _memoryFallback = {};
 
   String? _accessToken;
   String? _refreshToken;
@@ -18,7 +20,7 @@ class ApiClient {
   static const _accessKey = 'access_token';
   static const _refreshKey = 'refresh_token';
 
-  ApiClient._internal() {
+  ApiClient._internal() : _storage = FlutterSecureStorage() {
     dio = Dio(BaseOptions(
       baseUrl: AppConfig.baseUrl,
       connectTimeout: const Duration(seconds: 10),
@@ -65,26 +67,36 @@ class ApiClient {
   void setTokens(String access, String refresh) {
     _accessToken = access;
     _refreshToken = refresh;
-    _storage.write(key: _accessKey, value: access);
-    _storage.write(key: _refreshKey, value: refresh);
+    if (kIsWeb) {
+      _memoryFallback[_accessKey] = access;
+      _memoryFallback[_refreshKey] = refresh;
+    } else {
+      _storage.write(key: _accessKey, value: access);
+      _storage.write(key: _refreshKey, value: refresh);
+    }
   }
 
   Future<void> clearTokens() async {
     _accessToken = null;
     _refreshToken = null;
-    await _storage.delete(key: _accessKey);
-    await _storage.delete(key: _refreshKey);
+    if (kIsWeb) {
+      _memoryFallback.remove(_accessKey);
+      _memoryFallback.remove(_refreshKey);
+    } else {
+      await _storage.delete(key: _accessKey);
+      await _storage.delete(key: _refreshKey);
+    }
   }
 
   Future<bool> restoreTokens() async {
-    final access = await _storage.read(key: _accessKey);
-    final refresh = await _storage.read(key: _refreshKey);
-    if (access != null && refresh != null) {
-      _accessToken = access;
-      _refreshToken = refresh;
-      return true;
+    if (kIsWeb) {
+      _accessToken = _memoryFallback[_accessKey];
+      _refreshToken = _memoryFallback[_refreshKey];
+    } else {
+      _accessToken = await _storage.read(key: _accessKey);
+      _refreshToken = await _storage.read(key: _refreshKey);
     }
-    return false;
+    return _accessToken != null && _refreshToken != null;
   }
 
   Future<void> _refreshAccessToken() async {
@@ -92,8 +104,13 @@ class ApiClient {
         .post('/api/auth/refresh', data: {'refresh_token': _refreshToken});
     _accessToken = resp.data['access_token'];
     _refreshToken = resp.data['refresh_token'];
-    await _storage.write(key: _accessKey, value: _accessToken);
-    await _storage.write(key: _refreshKey, value: _refreshToken);
+    if (kIsWeb) {
+      _memoryFallback[_accessKey] = _accessToken!;
+      _memoryFallback[_refreshKey] = _refreshToken!;
+    } else {
+      await _storage.write(key: _accessKey, value: _accessToken);
+      await _storage.write(key: _refreshKey, value: _refreshToken);
+    }
     _isRefreshing = false;
   }
 
