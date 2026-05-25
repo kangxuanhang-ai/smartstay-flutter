@@ -31,6 +31,7 @@ class SSEParser {
         final data = jsonDecode(jsonStr) as Map<String, dynamic>;
         final type = data['type'] as String?;
         if (type == 'done') {
+          _processRemainingLines();
           _controller.add(SSEEvent('done', null));
           return;
         }
@@ -50,5 +51,25 @@ class SSEParser {
 
   void close() {
     _controller.close();
+  }
+
+  void _processRemainingLines() {
+    while (_buffer.contains('\n')) {
+      final idx = _buffer.indexOf('\n');
+      final line = _buffer.substring(0, idx).trim();
+      _buffer = _buffer.substring(idx + 1);
+
+      if (line.isEmpty) continue;
+      if (!line.startsWith('data: ')) continue;
+
+      final jsonStr = line.substring(6);
+      try {
+        final data = jsonDecode(jsonStr) as Map<String, dynamic>;
+        final type = data['type'] as String?;
+        if (type != 'done') {
+          _controller.add(SSEEvent(type, data));
+        }
+      } catch (_) {}
+    }
   }
 }
