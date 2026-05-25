@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/api_client.dart';
 import '../../core/sse_parser.dart';
@@ -28,11 +29,41 @@ class ChatBloc extends Bloc<Object, ChatState> {
     final cards = <Map<String, dynamic>>[];
 
     try {
-      final resp = await _api.dio.post(
-        '/api/ai/chat',
-        data: {'message': event.message},
-        options: Options(responseType: ResponseType.stream),
-      );
+      if (kIsWeb) {
+        // Web: ResponseType.stream 不被浏览器支持，用 plain 拿完整响应后手动解析
+        final resp = await _api.dio.post(
+          '/api/ai/chat',
+          data: {'message': event.message},
+          options: Options(responseType: ResponseType.plain),
+        );
+        if (resp.data is String) {
+          String aiText = '';
+          for (final line in (resp.data as String).split('\n')) {
+            if (!line.startsWith('data: ')) continue;
+            final jsonStr = line.substring(6);
+            try {
+              final data = jsonDecode(jsonStr) as Map<String, dynamic>;
+              if (data['type'] == 'text' && data['content'] != null) {
+                aiText += data['content'].toString();
+              } else if (data['type'] == 'card' && data['card'] != null) {
+                cards.add(data['card'] as Map<String, dynamic>);
+              }
+            } catch (_) {}
+          }
+          final idx2 = state.messages.indexWhere((m) => m.id == aiMsgId);
+          if (idx2 != -1) {
+            final msgs2 = List<ChatMessage>.from(state.messages);
+            msgs2[idx2] = ChatMessage(id: aiMsgId, isUser: false, text: aiText, cards: List.from(cards));
+            emit(ChatState(messages: msgs2, isStreaming: false));
+          }
+        }
+      } else {
+        // 移动端：ResponseType.stream 原生支持
+        final resp = await _api.dio.post(
+          '/api/ai/chat',
+          data: {'message': event.message},
+          options: Options(responseType: ResponseType.stream),
+        );
 
       final parser = SSEParser();
       final stream = resp.data.stream as Stream<List<int>>;
@@ -90,6 +121,7 @@ class ChatBloc extends Bloc<Object, ChatState> {
       if (streamError) {
         emit(state.copyWith(isStreaming: false, error: '连接中断'));
       }
+      } // else (kIsWeb) block
     } catch (_) {
       emit(state.copyWith(isStreaming: false, error: '发送失败'));
     }
