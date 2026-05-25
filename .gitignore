@@ -1,5 +1,6 @@
 # Flutter
 build/
+web/build/
 .flutter-plugins
 .flutter-plugins-dependencies
 .packages
@@ -7,6 +8,7 @@ build/
 .idea/
 .vscode/
 *.iml
+*.lock
 
 # Dependencies
 pubspec.lock
