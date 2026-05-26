@@ -38,10 +38,68 @@ class _WorkOrderPageState extends State<WorkOrderPage> {
     }
   }
 
+  void _showCreateDialog() {
+    String selectedType = 'delivery';
+    final contentController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('新建服务请求'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment(value: 'delivery', label: Text('📦 送物'), icon: Icon(Icons.delivery_dining)),
+                  ButtonSegment(value: 'repair', label: Text('🔧 报修'), icon: Icon(Icons.build)),
+                ],
+                selected: {selectedType},
+                onSelectionChanged: (v) => setDialogState(() => selectedType = v.first),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: contentController,
+                decoration: const InputDecoration(
+                  labelText: '需求描述',
+                  hintText: '例如：送两双拖鞋 / 马桶堵了',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 2,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+            FilledButton(
+              onPressed: () {
+                final content = contentController.text.trim();
+                if (content.isEmpty) return;
+                context.read<WorkOrderBloc>().add(
+                  WorkOrderCreated(type: selectedType, content: content),
+                );
+                Navigator.pop(ctx);
+              },
+              child: const Text('提交'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('📋 服务追踪'), backgroundColor: const Color(0xFF1A1A2E), foregroundColor: Colors.white),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _showCreateDialog,
+        icon: const Icon(Icons.add),
+        label: const Text('新建服务'),
+        backgroundColor: const Color(0xFF1677FF),
+        foregroundColor: Colors.white,
+      ),
       body: BlocBuilder<WorkOrderBloc, WorkOrderState>(
         builder: (context, state) {
           if (state.loading) {

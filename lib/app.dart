@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'blocs/auth/auth_bloc.dart';
 import 'blocs/auth/auth_state.dart';
+import 'core/ws_service.dart';
 import 'widgets/bottom_nav.dart';
 import 'pages/home/home_page.dart';
 import 'pages/map/map_page.dart';
@@ -100,14 +101,23 @@ class AppRouter {
 class _AuthListenable extends ChangeNotifier {
   final AuthBloc bloc;
   StreamSubscription? _sub;
+  final _ws = WsService();
 
   _AuthListenable(this.bloc) {
-    _sub = bloc.stream.listen((_) => notifyListeners());
+    _sub = bloc.stream.listen((state) {
+      if (state.status == AuthStatus.authenticated) {
+        _ws.connect();
+      } else {
+        _ws.disconnect();
+      }
+      notifyListeners();
+    });
   }
 
   @override
   void dispose() {
     _sub?.cancel();
+    _ws.disconnect();
     super.dispose();
   }
 }
