@@ -1,23 +1,32 @@
 # Flutter
 build/
-web/build/
+.web/
 .flutter-plugins
 .flutter-plugins-dependencies
 .packages
 .dart_tool/
+
+# IDE
 .idea/
 .vscode/
 *.iml
-*.lock
 
-# Dependencies
-pubspec.lock
-
-# Config (copy config.example.dart → config.dart)
-lib/core/config.dart
+# Platform build artifacts
+android/.gradle/
+android/app/build/
+android/app/debug/
+android/app/profile/
+ios/Pods/
+ios/.symlinks/
+ios/build/
+linux/build/
+macos/build/
+macos/Pods/
+windows/build/
 
 # OS
 .DS_Store
 Thumbs.db
-.DS_Store
-Thumbs.db
+
+# Config (environment-specific)
+lib/core/config.dart
