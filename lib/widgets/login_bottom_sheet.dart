@@ -95,6 +95,13 @@ class _LoginBottomSheetState extends State<LoginBottomSheet> {
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         Container(width: 36, height: 4, margin: const EdgeInsets.only(bottom: 16),
           decoration: BoxDecoration(color: const Color(0xFFE0E0E0), borderRadius: BorderRadius.circular(2))),
+        Align(alignment: Alignment.topRight, child: GestureDetector(
+          onTap: () => Navigator.pop(context),
+          child: Container(width: 26, height: 26,
+            decoration: const BoxDecoration(color: Color(0xFFF0F0F0), shape: BoxShape.circle),
+            child: const Icon(Icons.close, size: 14, color: Color(0xFF999999))),
+        )),
+        const SizedBox(height: 8),
         const Text('🔑', style: TextStyle(fontSize: 28)),
         const SizedBox(height: 6),
         const Text('修改初始密码', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF1A1A2E))),
@@ -158,6 +165,10 @@ class _LoginBottomSheetState extends State<LoginBottomSheet> {
     final password = _passwordCtrl.text.trim();
     if (idCard.isEmpty || password.isEmpty) {
       setState(() => _error = '请输入身份证号和密码');
+      return;
+    }
+    if (idCard.length != 18) {
+      setState(() => _error = '请输入18位身份证号');
       return;
     }
     setState(() { _loading = true; _error = null; });
