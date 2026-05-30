@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:dio/dio.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/api_client.dart';
 import 'room_event.dart';
@@ -22,20 +23,55 @@ class RoomBloc extends Bloc<Object, RoomState> {
       final resp = await _api.get('/api/rooms/my-room');
       final r = resp.data as Map<String, dynamic>;
       final devices = r['device_states'] as Map<String, dynamic>? ?? {};
+
+      final livingLight = _extractBool(devices['living_light']);
+      final bedroomLight = _extractBool(devices['bedroom_light']);
+      final bedsideLight = _extractBool(devices['bedside_light']);
+      final curtain = _extractInt(devices['curtain'], fallback: 50);
+      final acTemp = _extractInt(devices['ac_temp'], fallback: 24);
+      final acMode = devices['ac_mode'];
+      final acCool = acMode is Map ? acMode['value'] != 'heat' : acMode != 'heat';
+
       emit(RoomState(
         roomNumber: r['room_number'] ?? '', roomType: r['room_type'] ?? '',
         basePrice: (r['base_price'] ?? 0) / 100, currentPrice: (r['current_price'] ?? 0) / 100,
         roomStatus: r['status'] ?? '',
-        livingLight: devices['living_light'] == true,
-        bedroomLight: devices['bedroom_light'] == true,
-        bedsideLight: devices['bedside_light'] == true,
-        curtain: (devices['curtain'] as num?)?.toInt() ?? 50,
-        acTemp: (devices['ac_temp'] as num?)?.toInt() ?? 24,
-        acCool: devices['ac_mode'] != 'heat',
+        livingLight: livingLight, bedroomLight: bedroomLight, bedsideLight: bedsideLight,
+        curtain: curtain, acTemp: acTemp, acCool: acCool,
       ));
+    } on DioException catch (e) {
+      final statusCode = e.response?.statusCode;
+      String msg;
+      if (statusCode == 404) {
+        msg = '您当前没有入住中的房间，请先办理入住';
+      } else if (statusCode == 401) {
+        msg = '登录已过期，请重新登录';
+      } else if (statusCode == 403) {
+        msg = '无权限访问房间控制';
+      } else {
+        msg = '网络异常，请检查网络后重试';
+      }
+      emit(state.copyWith(loading: false, error: msg));
     } catch (_) {
-      emit(state.copyWith(loading: false, error: '加载房间数据失败'));
+      emit(state.copyWith(loading: false, error: '加载房间数据失败，请稍后重试'));
     }
+  }
+
+  /// 兼容 {on: true/false} 和直接 true/false 两种格式
+  bool _extractBool(dynamic value) {
+    if (value is bool) return value;
+    if (value is Map) return value['on'] == true || value['value'] == true;
+    return false;
+  }
+
+  /// 兼容 {value: 45} 和直接 45 两种格式
+  int _extractInt(dynamic value, {required int fallback}) {
+    if (value is num) return value.toInt();
+    if (value is Map) {
+      final v = value['value'];
+      if (v is num) return v.toInt();
+    }
+    return fallback;
   }
 
   Future<void> _onLightToggled(LightToggled e, Emitter<RoomState> emit) async {
@@ -70,8 +106,17 @@ class RoomBloc extends Bloc<Object, RoomState> {
         await _api.post('/api/rooms/my-room/device', data: {
           'device': device, 'state': value is bool ? {'on': value} : {'value': value},
         });
+      } on DioException catch (e) {
+        final statusCode = e.response?.statusCode;
+        if (statusCode == 404) {
+          emit(state.copyWith(error: '未入住，设备控制不可用'));
+        } else if (statusCode == 401) {
+          emit(state.copyWith(error: '登录已过期，请重新登录'));
+        } else {
+          emit(state.copyWith(error: '设备控制失败，请重试'));
+        }
       } catch (_) {
-        emit(state.copyWith(error: '网络请求失败'));
+        emit(state.copyWith(error: '设备控制失败'));
       }
     });
   }

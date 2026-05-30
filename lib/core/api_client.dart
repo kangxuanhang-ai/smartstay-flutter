@@ -24,7 +24,7 @@ class ApiClient {
     dio = Dio(BaseOptions(
       baseUrl: AppConfig.baseUrl,
       connectTimeout: const Duration(seconds: 10),
-      receiveTimeout: const Duration(seconds: 30),
+      receiveTimeout: const Duration(minutes: 5),
       headers: {'Content-Type': 'application/json'},
     ));
     dio.interceptors.add(_TokenInterceptor());
@@ -37,7 +37,7 @@ class ApiClient {
       if (!_isRefreshing) {
         _isRefreshing = true;
         try {
-          await _refreshAccessToken();
+          await refreshAccessToken();
           final token = _accessToken;
           req.headers['Authorization'] = 'Bearer $token';
           for (final entry in _failedQueue) {
@@ -99,7 +99,8 @@ class ApiClient {
     return _accessToken != null && _refreshToken != null;
   }
 
-  Future<void> _refreshAccessToken() async {
+  /// 刷新 access token（供 web 平台手动调用，Dio 拦截器自动调用）
+  Future<void> refreshAccessToken() async {
     final resp = await Dio(BaseOptions(baseUrl: AppConfig.baseUrl))
         .post('/api/auth/refresh', data: {'refresh_token': _refreshToken});
     final access = resp.data['access_token'] as String?;
@@ -121,6 +122,12 @@ class ApiClient {
   }
 
   String? get accessToken => _accessToken;
+
+  /// 返回适合 SSE 流式响应的 Options（非 Web 平台使用）
+  Options streamOptions() => Options(
+        responseType: ResponseType.stream,
+        receiveTimeout: const Duration(minutes: 10),
+      );
 
   Future<Response> get(String path, {Map<String, dynamic>? queryParameters}) =>
       dio.get(path, queryParameters: queryParameters);
