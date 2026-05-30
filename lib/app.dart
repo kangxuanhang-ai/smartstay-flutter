@@ -26,6 +26,9 @@ class AppRouter {
       final auth = authBloc.state;
       final loc = state.uri.toString();
 
+      // Root → home
+      if (loc == '/') return '/home';
+
       // Only force password change redirect
       if (auth.status == AuthStatus.passwordChangeRequired) {
         if (loc != '/change-password') return '/change-password';
