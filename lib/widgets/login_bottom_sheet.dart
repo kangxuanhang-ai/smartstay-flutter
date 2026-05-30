@@ -167,10 +167,6 @@ class _LoginBottomSheetState extends State<LoginBottomSheet> {
       setState(() => _error = '请输入身份证号和密码');
       return;
     }
-    if (idCard.length != 18) {
-      setState(() => _error = '请输入18位身份证号');
-      return;
-    }
     setState(() { _loading = true; _error = null; });
     try {
       final bloc = context.read<AuthBloc>();
