@@ -33,7 +33,7 @@ class WorkOrderBloc extends Bloc<WorkOrderEvent, WorkOrderState> {
         content: o['content'] ?? '',
         status: o['status'] ?? '',
         assignedResource: o['assigned_resource'],
-        createdAt: DateTime.tryParse(o['created_at'] ?? '') ?? DateTime.now(),
+        createdAt: (DateTime.tryParse(o['created_at'] ?? '') ?? DateTime.now()).toLocal(),
       )).toList();
       emit(WorkOrderState(orders: orders));
     } catch (_) {
