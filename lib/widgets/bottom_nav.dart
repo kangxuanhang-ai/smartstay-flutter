@@ -13,7 +13,7 @@ class BottomNav extends StatelessWidget {
       ('💡', '控房'),
       ('🤖', '管家'),
       ('📋', '服务'),
-      ('💰', '账单'),
+      ('👤', '我的'),
     ];
 
     return BottomNavigationBar(
