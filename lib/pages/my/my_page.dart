@@ -3,8 +3,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../blocs/auth/auth_bloc.dart';
 import '../../blocs/auth/auth_event.dart';
 import '../../blocs/auth/auth_state.dart';
+import '../../blocs/room/room_bloc.dart';
+import '../../blocs/room/room_event.dart';
+import '../../blocs/room/room_state.dart';
 import '../../core/api_client.dart';
-import '../../widgets/login_bottom_sheet.dart';
+import 'package:go_router/go_router.dart';
 
 class MyPage extends StatefulWidget {
   const MyPage({super.key});
@@ -20,6 +23,10 @@ class _MyPageState extends State<MyPage> {
   @override
   void initState() {
     super.initState();
+    final auth = context.read<AuthBloc>().state;
+    if (auth.status == AuthStatus.authenticated) {
+      context.read<RoomBloc>().add(RoomFetched());
+    }
     _loadData();
   }
 
@@ -33,12 +40,17 @@ class _MyPageState extends State<MyPage> {
         final billResp = await ApiClient().get('/api/orders/${_currentOrder!['id']}/bill');
         _billData = billResp.data as Map<String, dynamic>?;
       }
-    } catch (_) {
-      // No active order - ignore
-    } finally {
-      if (mounted) setState(() {});
-    }
+    } catch (_) {}
+    if (mounted) setState(() {});
   }
+
+  // ── Colors ──
+  static const _bg = Color(0xFF0a0a1e);
+  static const _card = Color(0xFF1f2937);
+  static const _blue = Color(0xFF2563eb);
+  static const _muted = Color(0xFF9ca3af);
+
+  bool get _isLoggedIn => context.read<AuthBloc>().state.status == AuthStatus.authenticated;
 
   @override
   Widget build(BuildContext context) {
@@ -47,180 +59,161 @@ class _MyPageState extends State<MyPage> {
         if (state.status == AuthStatus.authenticated) _loadData();
       },
       child: Scaffold(
-        appBar: AppBar(title: const Text('👤 我的'), backgroundColor: const Color(0xFF1A1A2E), foregroundColor: Colors.white),
-        body: BlocBuilder<AuthBloc, AuthState>(
-          builder: (context, auth) {
-            if (auth.status == AuthStatus.authenticated) return _buildAuthenticatedView(auth);
-            return _buildUnauthView();
-          },
-        ),
-      ),
-    );
-  }
-
-  Widget _buildUnauthView() {
-    return ListView(children: [
-      Container(
-        margin: const EdgeInsets.all(12),
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF1A1A2E), Color(0xFF16213E), Color(0xFF1677FF)],
-            begin: Alignment.topLeft, end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(children: [
-          Container(width: 56, height: 56,
-            decoration: BoxDecoration(color: Colors.white.withOpacity(0.12), shape: BoxShape.circle),
-            child: const Center(child: Text('🏨', style: TextStyle(fontSize: 26)))),
-          const SizedBox(height: 12),
-          const Text('智宿云酒店', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 4),
-          Text('登录后享受完整入住服务', style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 10)),
-          const SizedBox(height: 16),
-          GestureDetector(
-            onTap: () => LoginBottomSheet.show(context),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 10),
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 16)]),
-              child: const Text('立即登录', style: TextStyle(color: Color(0xFF1677FF), fontSize: 11, fontWeight: FontWeight.w700)),
+        backgroundColor: _bg,
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter, end: Alignment.bottomCenter,
+              colors: [Color(0xFF111128), Color(0xFF0a0a1e)],
             ),
           ),
-        ]),
-      ),
-      _buildSettingsCard(showLogout: false),
-    ]);
-  }
-
-  Widget _buildAuthenticatedView(AuthState auth) {
-    final grandTotal = _billData != null ? ((_billData!['grand_total'] as num?)?.toInt() ?? 0) : 0;
-    return RefreshIndicator(
-      onRefresh: _loadData,
-      child: ListView(children: [
-        Container(
-          margin: const EdgeInsets.all(12),
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF1A1A2E), Color(0xFF16213E), Color(0xFF1677FF)],
-              begin: Alignment.topLeft, end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Column(children: [
-            Row(children: [
-              Container(width: 48, height: 48,
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(colors: [Color(0xFF4096FF), Color(0xFF95DE64)]),
-                  shape: BoxShape.circle,
-                ),
-                child: Center(child: Text(
-                  (auth.name ?? '?').substring(0, 1),
-                  style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800),
-                ))),
-              const SizedBox(width: 12),
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(auth.name ?? '', style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800)),
-                const SizedBox(height: 3),
-                Text('身份证 ${_maskIdCard(auth.idCard ?? '')}', style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 9)),
-                Text('手机 ${_maskPhone(auth.phone ?? '')}', style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 9)),
-              ]),
-            ]),
-            if (_currentOrder != null) ...[
-              const SizedBox(height: 14),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
-                child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                  Text('🏨 当前入住', style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 10)),
-                  Text('${_currentOrder!['room_number'] ?? ''}房 · ${_currentOrder!['room_type'] ?? ''}',
-                    style: const TextStyle(color: Color(0xFF7FFFA7), fontSize: 11, fontWeight: FontWeight.w700)),
-                ]),
-              ),
-            ],
-          ]),
-        ),
-        _buildSectionCard('📋 我的订单', [
-          if (_currentOrder != null)
-            _buildMenuItem('当前', '${_currentOrder!['room_number'] ?? ''}房', tag: '当前', tagColor: const Color(0xFF1677FF)),
-          _buildMenuItem('历史', '暂无记录', tag: '历史', tagColor: const Color(0xFF999999)),
-        ]),
-        _buildSectionCard('💰 账单消费', [
-          _buildMenuItem('当前账单', grandTotal > 0 ? '¥${(grandTotal / 100).toStringAsFixed(0)}' : '暂无账单',
-            valueColor: const Color(0xFFFF4D4F)),
-        ]),
-        _buildSettingsCard(showLogout: true),
-        const SizedBox(height: 24),
-      ]),
-    );
-  }
-
-  Widget _buildSectionCard(String title, List<Widget> children) {
-    return Container(margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10)]),
-      child: Column(children: [
-        Container(width: double.infinity, padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: const BoxDecoration(color: Color(0xFFFAFBFC), borderRadius: BorderRadius.vertical(top: Radius.circular(14))),
-          child: Text(title, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF1A1A2E)))),
-        ...children,
-      ]),
-    );
-  }
-
-  Widget _buildMenuItem(String label, String value, {String? tag, Color? tagColor, Color? valueColor, VoidCallback? onTap}) {
-    return InkWell(onTap: onTap,
-      child: Padding(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-        child: Row(children: [
-          if (tag != null) ...[
-            Container(padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-              decoration: BoxDecoration(color: tagColor?.withOpacity(0.1) ?? const Color(0xFFF5F5F5), borderRadius: BorderRadius.circular(4)),
-              child: Text(tag, style: TextStyle(fontSize: 8, color: tagColor ?? const Color(0xFF999999), fontWeight: FontWeight.w600))),
-            const SizedBox(width: 8),
-          ],
-          Expanded(child: Text(label, style: const TextStyle(fontSize: 10, color: Color(0xFF333333)))),
-          Text(value, style: TextStyle(fontSize: valueColor != null ? 15 : 10, color: valueColor ?? const Color(0xFF333333), fontWeight: valueColor != null ? FontWeight.w800 : FontWeight.normal)),
-          const SizedBox(width: 8),
-          const Text('›', style: TextStyle(fontSize: 14, color: Color(0xFFDDDDDD))),
-        ])),
-    );
-  }
-
-  Widget _buildSettingsCard({required bool showLogout}) {
-    return Container(margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10)]),
-      child: Column(children: [
-        if (showLogout) _buildMenuItem('🔑 修改密码', '', onTap: () {}),
-        _buildMenuItem('🏨 关于酒店', '', onTap: () {}),
-        _buildMenuItem('📞 客服电话', '', onTap: () {}),
-        if (showLogout)
-          _buildMenuItem('🚪 退出登录', '', valueColor: const Color(0xFFFF4D4F), onTap: () {
-            showDialog(context: context, builder: (ctx) => AlertDialog(
-              title: const Text('确认退出'),
-              content: const Text('确定要退出登录吗？'),
-              actions: [
-                TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
-                FilledButton(onPressed: () {
-                  context.read<AuthBloc>().add(AuthLogoutRequested());
-                  Navigator.pop(ctx);
-                }, child: const Text('退出')),
+          child: SafeArea(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+              children: [
+                const Text('我的', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: Colors.white)),
+                const SizedBox(height: 20),
+                _buildProfileCard(),
+                const SizedBox(height: 20),
+                _buildMenuList(),
+                if (_isLoggedIn) ...[
+                  const SizedBox(height: 20),
+                  _buildLogoutButton(),
+                ],
+                const SizedBox(height: 80),
               ],
-            ));
-          }),
-      ]),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
-  String _maskIdCard(String idCard) {
-    if (idCard.length <= 6) return idCard;
-    return '${idCard.substring(0, 4)}****${idCard.substring(idCard.length - 4)}';
+  // ── Profile Card ──
+  Widget _buildProfileCard() {
+    final name = _isLoggedIn ? (context.read<AuthBloc>().state.name ?? '用户') : '游客';
+    final roomState = context.watch<RoomBloc>().state;
+    final roomNumber = roomState.roomNumber;
+    final roomType = roomState.roomType;
+
+    return GestureDetector(
+      onTap: () {
+        if (!_isLoggedIn) context.go('/login');
+      },
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: _card,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 10, offset: const Offset(0, 4))],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 80, height: 80,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: _blue, width: 4),
+                color: _card,
+              ),
+              child: Center(
+                child: Text(name.isNotEmpty ? name.substring(0, 1) : '?',
+                  style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: Colors.white)),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Colors.white)),
+                  const SizedBox(height: 4),
+                  Text(
+                    roomNumber.isNotEmpty
+                      ? '$roomNumber 房间 · ${_mapRoomType(roomType)}'
+                      : _isLoggedIn ? '暂无入住房间' : '登录后享受完整入住服务',
+                    style: const TextStyle(fontSize: 13, color: _muted)),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: _muted, size: 20),
+          ],
+        ),
+      ),
+    );
   }
 
-  String _maskPhone(String phone) {
-    if (phone.length <= 4) return phone;
-    return '${phone.substring(0, 3)}****${phone.substring(phone.length - 4)}';
+  // ── Menu List ──
+  Widget _buildMenuList() {
+    final items = [
+      (Icons.receipt_long_outlined, '我的订单', () {}),
+      (Icons.payment_outlined, '我的账单', () { context.go('/bill-detail'); }),
+      (Icons.star_outline, '我的收藏', () {}),
+      (Icons.person_outline, '常用信息', () {}),
+      (Icons.settings_outlined, '设置', () {}),
+    ];
+
+    return Container(
+      decoration: BoxDecoration(
+        color: _card,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: items.map((item) {
+          final isLast = item == items.last;
+          return Column(
+            children: [
+              Material(
+                color: Colors.transparent,
+                child: ListTile(
+                  leading: Icon(item.$1, color: _muted, size: 22),
+                  title: Text(item.$2, style: const TextStyle(fontSize: 15, color: Colors.white)),
+                  trailing: const Icon(Icons.chevron_right, color: _muted, size: 20),
+                  onTap: item.$3,
+                ),
+              ),
+              if (!isLast) const Divider(height: 1, indent: 56, color: Color(0xFF374151)),
+            ],
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  // ── Logout Button ──
+  Widget _buildLogoutButton() {
+    return SizedBox(
+      width: double.infinity, height: 52,
+      child: OutlinedButton(
+        style: OutlinedButton.styleFrom(
+          side: const BorderSide(color: Color(0xFF374151)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+        onPressed: () {
+          showDialog(context: context, builder: (ctx) => AlertDialog(
+            backgroundColor: _card,
+            title: const Text('确认退出', style: TextStyle(color: Colors.white)),
+            content: const Text('确定要退出登录吗？', style: TextStyle(color: _muted)),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消', style: TextStyle(color: _muted))),
+              TextButton(onPressed: () {
+                context.read<AuthBloc>().add(AuthLogoutRequested());
+                Navigator.pop(ctx);
+              }, child: const Text('退出', style: TextStyle(color: Colors.redAccent))),
+            ],
+          ));
+        },
+        child: const Text('退出登录', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white)),
+      ),
+    );
+  }
+
+  String _mapRoomType(String? type) {
+    switch (type) {
+      case 'big_bed': return '大床房';
+      case 'twin': return '双床房';
+      case 'suite': return '套房';
+      default: return type ?? '';
+    }
   }
 }

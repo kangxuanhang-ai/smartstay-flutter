@@ -1,4 +1,4 @@
-enum AuthStatus { initial, loading, authenticated, unauthenticated, passwordChangeRequired }
+enum AuthStatus { initial, loading, authenticated, unauthenticated, passwordChangeRequired, faceLoginLoading }
 
 class AuthState {
   final AuthStatus status;

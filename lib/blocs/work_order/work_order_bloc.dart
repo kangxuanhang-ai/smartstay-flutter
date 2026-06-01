@@ -23,6 +23,11 @@ class WorkOrderBloc extends Bloc<WorkOrderEvent, WorkOrderState> {
   }
 
   Future<void> _onFetched(WorkOrdersFetched event, Emitter<WorkOrderState> emit) async {
+    // 未登录时跳过请求
+    if (_api.accessToken == null) {
+      emit(state.copyWith(loading: false));
+      return;
+    }
     emit(state.copyWith(loading: true));
     try {
       final resp = await _api.get('/api/work-orders/my-orders');

@@ -22,3 +22,8 @@ class AuthChangePasswordRequested {
 class AuthLogoutRequested {}
 
 class AuthFetchUserRequested {}
+
+class AuthFaceLoginRequested {
+  final List<int> imageBytes;
+  AuthFaceLoginRequested(this.imageBytes);
+}

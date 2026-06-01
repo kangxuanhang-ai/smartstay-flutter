@@ -1,4 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:dio/dio.dart';
 import '../../core/api_client.dart';
 import 'auth_event.dart';
 import 'auth_state.dart';
@@ -10,6 +11,7 @@ class AuthBloc extends Bloc<Object, AuthState> {
     on<AuthLogoutRequested>(_onLogout);
     on<AuthFetchUserRequested>(_onFetchUser);
     on<AuthBootstrapRequested>(_onBootstrap);
+    on<AuthFaceLoginRequested>(_onFaceLogin);
   }
 
   final _api = ApiClient();
@@ -37,9 +39,13 @@ class AuthBloc extends Bloc<Object, AuthState> {
   Future<void> _onLogin(AuthLoginRequested event, Emitter<AuthState> emit) async {
     emit(state.copyWith(status: AuthStatus.loading));
     try {
+      // ignore: avoid_print
+      print('[AUTH] POST /api/auth/login id_card=${event.idCard}');
       final resp = await _api.post('/api/auth/login', data: {
         'id_card': event.idCard, 'password': event.password,
       });
+      // ignore: avoid_print
+      print('[AUTH] response: ${resp.statusCode} ${resp.data}');
       _api.setTokens(resp.data['access_token'], resp.data['refresh_token']);
       final me = await _api.get('/api/auth/me');
       final user = me.data as Map<String, dynamic>;
@@ -48,8 +54,10 @@ class AuthBloc extends Bloc<Object, AuthState> {
         userId: user['id'], name: user['name'], idCard: user['id_card'],
         phone: user['phone'], role: user['role'], isFirstLogin: user['is_first_login'] == true,
       ));
-    } catch (_) {
-      emit(state.copyWith(status: AuthStatus.unauthenticated, error: '登录失败，请检查身份证号和密码'));
+    } catch (e) {
+      // ignore: avoid_print
+      print('[AUTH] ERROR: $e');
+      emit(state.copyWith(status: AuthStatus.unauthenticated, error: '登录失败: $e'));
     }
   }
 
@@ -82,6 +90,31 @@ class AuthBloc extends Bloc<Object, AuthState> {
       ));
     } catch (_) {
       emit(state.copyWith(status: AuthStatus.unauthenticated));
+    }
+  }
+
+  Future<void> _onFaceLogin(AuthFaceLoginRequested event, Emitter<AuthState> emit) async {
+    emit(state.copyWith(status: AuthStatus.faceLoginLoading, error: null));
+    try {
+      final formData = FormData.fromMap({
+        'file': MultipartFile.fromBytes(event.imageBytes, filename: 'face.jpg'),
+      });
+      final response = await _api.post('/api/face/search', data: formData);
+      final data = response.data;
+      _api.setTokens(data['access_token'], data['refresh_token']);
+      final userResp = await _api.get('/api/auth/me');
+      final user = userResp.data;
+      emit(AuthState(
+        status: AuthStatus.authenticated,
+        userId: user['id'],
+        name: user['name'],
+        idCard: user['id_card'],
+        phone: user['phone'] ?? '',
+        role: user['role'] ?? 'guest',
+        isFirstLogin: user['is_first_login'] ?? false,
+      ));
+    } catch (e) {
+      emit(state.copyWith(status: AuthStatus.unauthenticated, error: '刷脸登录失败'));
     }
   }
 }

@@ -16,6 +16,7 @@ class AIChatPage extends StatefulWidget {
 
 class _AIChatPageState extends State<AIChatPage> {
   final _textCtrl = TextEditingController();
+  final _scrollCtrl = ScrollController();
 
   void _send() {
     final text = _textCtrl.text.trim();
@@ -26,88 +27,225 @@ class _AIChatPageState extends State<AIChatPage> {
     _textCtrl.clear();
   }
 
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollCtrl.hasClients) {
+        _scrollCtrl.animateTo(_scrollCtrl.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+      }
+    });
+  }
+
+  // ── Colors ──
+  static const _bg = Color(0xFF0a0a1e);
+  static const _card = Color(0xFF1f2937);
+  static const _bubbleBot = Color(0xFF1a1a3a);
+  static const _blue = Color(0xFF2563eb);
+  static const _muted = Color(0xFF9ca3af);
+
   @override
   Widget build(BuildContext context) {
     final isLoggedIn = context.watch<AuthBloc>().state.status == AuthStatus.authenticated;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('🤖 AI虚拟管家'), backgroundColor: const Color(0xFF1A1A2E), foregroundColor: Colors.white),
-      body: isLoggedIn ? _buildChatBody() : const AuthPrompt.overlay(
-        icon: '🤖',
-        title: 'AI 虚拟管家',
-        description: '登录后即可享受智能对话\n控制设备 · 查询信息 · 提交服务',
-      ),
+      backgroundColor: _bg,
+      body: isLoggedIn ? _buildBody() : const AuthPrompt.overlay(
+        icon: '🤖', title: 'AI 虚拟管家',
+        description: '登录后即可享受智能对话\n控制设备 · 查询信息 · 提交服务'),
     );
   }
 
-  Widget _buildChatBody() {
-    return Column(
-      children: [
-        Expanded(
-          child: BlocBuilder<ChatBloc, ChatState>(
-            builder: (context, state) {
-              return ListView.builder(
-                padding: const EdgeInsets.all(12),
-                itemCount: state.messages.length,
-                itemBuilder: (context, idx) {
-                  final msg = state.messages[idx];
-                  final isUser = msg.isUser;
-                  return Align(
-                    alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-                    child: Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: isUser ? const Color(0xFF1677FF) : Colors.white,
-                        borderRadius: BorderRadius.only(
-                          topLeft: const Radius.circular(12),
-                          topRight: const Radius.circular(12),
-                          bottomLeft: isUser ? const Radius.circular(12) : Radius.zero,
-                          bottomRight: isUser ? Radius.zero : const Radius.circular(12),
+  Widget _buildBody() {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter, end: Alignment.bottomCenter,
+          colors: [Color(0xFF111128), Color(0xFF0a0a1e)],
+        ),
+      ),
+      child: Column(
+        children: [
+          // ── Header ──
+          SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+              child: Row(
+                children: [
+                  const SizedBox(width: 24),
+                  Expanded(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 32, height: 32,
+                          decoration: const BoxDecoration(color: _card, shape: BoxShape.circle),
+                          child: const Icon(Icons.smart_toy_rounded, color: Color(0xFF60a5fa), size: 18),
                         ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (msg.text.isNotEmpty)
-                            Text(msg.text, style: TextStyle(color: isUser ? Colors.white : const Color(0xFF262626))),
-                          ...msg.cards.map((card) => Card(
-                            margin: const EdgeInsets.only(top: 8),
-                            color: card['type'] == 'error' ? const Color(0xFFFFF1F0) : const Color(0xFFF6FFED),
-                            child: Padding(
-                              padding: const EdgeInsets.all(8),
-                              child: Row(children: [
-                                Text(card['type'] == 'error' ? '❌' : '✅', style: const TextStyle(fontSize: 16)),
-                                const SizedBox(width: 8),
-                                Expanded(child: Text(card['title'] ?? '', style: const TextStyle(fontSize: 13))),
-                              ]),
-                            ),
-                          )),
-                        ],
-                      ),
+                        const SizedBox(width: 8),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: const [
+                            Text('AI 智能管家', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white)),
+                            Text('在线中', style: TextStyle(fontSize: 11, color: Color(0xFF4ade80))),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 24),
+                ],
+              ),
+            ),
+          ),
+          // ── Chat Messages ──
+          Expanded(
+            child: BlocBuilder<ChatBloc, ChatState>(
+              builder: (context, state) {
+                if (state.messages.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 80, height: 80,
+                          decoration: const BoxDecoration(color: _card, shape: BoxShape.circle),
+                          child: const Icon(Icons.smart_toy_rounded, color: Color(0xFF60a5fa), size: 40),
+                        ),
+                        const SizedBox(height: 16),
+                        const Text('有什么可以帮您的吗？', style: TextStyle(fontSize: 15, color: _muted)),
+                      ],
                     ),
                   );
-                },
-              );
-            },
+                }
+                _scrollToBottom();
+                return ListView.builder(
+                  controller: _scrollCtrl,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  itemCount: state.messages.length,
+                  itemBuilder: (context, idx) {
+                    final msg = state.messages[idx];
+                    final isUser = msg.isUser;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: Row(
+                        mainAxisAlignment: isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (!isUser) ...[
+                            Container(
+                              width: 32, height: 32,
+                              decoration: const BoxDecoration(color: _card, shape: BoxShape.circle),
+                              child: const Icon(Icons.smart_toy_rounded, color: Color(0xFF60a5fa), size: 18),
+                            ),
+                            const SizedBox(width: 8),
+                          ],
+                          Flexible(
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: isUser ? _blue : _bubbleBot,
+                                borderRadius: BorderRadius.circular(16).copyWith(
+                                  bottomLeft: isUser ? const Radius.circular(16) : const Radius.circular(4),
+                                  bottomRight: isUser ? const Radius.circular(4) : const Radius.circular(16),
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (msg.text.isNotEmpty)
+                                    Text(msg.text, style: TextStyle(
+                                      fontSize: 14, color: isUser ? Colors.white : const Color(0xFFc0c0e0))),
+                                  ...msg.cards.map((card) => Container(
+                                    margin: const EdgeInsets.only(top: 8),
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: BoxDecoration(
+                                      color: _card, borderRadius: BorderRadius.circular(10)),
+                                    child: Row(children: [
+                                      Text(card['type'] == 'error' ? '❌' : '✅', style: const TextStyle(fontSize: 16)),
+                                      const SizedBox(width: 8),
+                                      Expanded(child: Text(card['title'] ?? '',
+                                        style: const TextStyle(fontSize: 13, color: Colors.white))),
+                                    ]),
+                                  )),
+                                ],
+                              ),
+                            ),
+                          ),
+                          if (isUser) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              width: 32, height: 32,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(color: _blue, width: 2),
+                                color: _card,
+                              ),
+                              child: const Icon(Icons.person, color: Colors.white, size: 16),
+                            ),
+                          ],
+                        ],
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
           ),
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: const BoxDecoration(color: Colors.white, border: Border(top: BorderSide(color: Color(0xFFF0F0F0)))),
-          child: Row(children: [
-            Expanded(child: TextField(controller: _textCtrl, decoration: const InputDecoration(hintText: '输入需求...', border: InputBorder.none))),
-            IconButton(onPressed: _send, icon: const Icon(Icons.send, color: Color(0xFF1677FF))),
-          ]),
-        ),
-      ],
+          // ── Input Bar ──
+          Container(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            decoration: const BoxDecoration(
+              color: Color(0xFF111128),
+              border: Border(top: BorderSide(color: _card)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: _card, borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: TextField(
+                      controller: _textCtrl,
+                      onSubmitted: (_) => _send(),
+                      style: const TextStyle(color: Colors.white, fontSize: 14),
+                      decoration: const InputDecoration(
+                        hintText: '输入您的需求...',
+                        hintStyle: TextStyle(color: _muted),
+                        border: InputBorder.none,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  width: 40, height: 40,
+                  decoration: const BoxDecoration(color: _card, shape: BoxShape.circle),
+                  child: const Icon(Icons.mic, color: _muted, size: 20),
+                ),
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: _send,
+                  child: Container(
+                    width: 40, height: 40,
+                    decoration: const BoxDecoration(color: _blue, shape: BoxShape.circle),
+                    child: const Icon(Icons.send, color: Colors.white, size: 18),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   @override
   void dispose() {
     _textCtrl.dispose();
+    _scrollCtrl.dispose();
     super.dispose();
   }
 }

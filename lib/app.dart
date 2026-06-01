@@ -9,6 +9,7 @@ import 'pages/home/home_page.dart';
 import 'pages/map/map_page.dart';
 import 'pages/facility/facility_page.dart';
 import 'pages/login/login_page.dart';
+import 'pages/login/face_login_page.dart';
 import 'pages/change_password/change_password_page.dart';
 import 'pages/room_control/room_control_page.dart';
 import 'pages/ai_chat/ai_chat_page.dart';
@@ -26,20 +27,15 @@ class AppRouter {
       final auth = authBloc.state;
       final loc = state.uri.toString();
 
-      // Root → home
       if (loc == '/') return '/home';
-
-      // Only force password change redirect
-      if (auth.status == AuthStatus.passwordChangeRequired) {
-        if (loc != '/change-password') return '/change-password';
-        return null;
+      if (auth.status == AuthStatus.authenticated && loc == '/change-password') {
+        return '/home';
       }
-
-      // All routes allow anonymous access - pages handle their own auth UI
       return null;
     },
     routes: [
       GoRoute(path: '/login', builder: (_, __) => const LoginPage()),
+      GoRoute(path: '/face-login', builder: (_, __) => const FaceLoginPage()),
       GoRoute(path: '/change-password', builder: (_, __) => const ChangePasswordPage()),
       ShellRoute(
         builder: (context, state, child) {

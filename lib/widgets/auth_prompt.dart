@@ -1,6 +1,6 @@
 // lib/widgets/auth_prompt.dart
 import 'package:flutter/material.dart';
-import 'login_bottom_sheet.dart';
+import 'package:go_router/go_router.dart';
 
 class AuthPrompt extends StatelessWidget {
   final String icon;
@@ -78,7 +78,7 @@ class AuthPrompt extends StatelessWidget {
 
   Widget _buildLoginButton(BuildContext context) {
     return GestureDetector(
-      onTap: () => LoginBottomSheet.show(context),
+      onTap: () => context.go('/login'),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 13),
         decoration: BoxDecoration(
