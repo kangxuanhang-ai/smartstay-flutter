@@ -159,18 +159,44 @@ class _AIChatPageState extends State<AIChatPage> {
                                   else if (msg.text.isNotEmpty)
                                     Text(msg.text, style: TextStyle(
                                       fontSize: 14, color: isUser ? Colors.white : const Color(0xFFc0c0e0))),
-                                  ...msg.cards.map((card) => Container(
-                                    margin: const EdgeInsets.only(top: 8),
-                                    padding: const EdgeInsets.all(10),
-                                    decoration: BoxDecoration(
-                                      color: _card, borderRadius: BorderRadius.circular(10)),
-                                    child: Row(children: [
-                                      Text(card['type'] == 'error' ? '❌' : '✅', style: const TextStyle(fontSize: 16)),
-                                      const SizedBox(width: 8),
-                                      Expanded(child: Text(card['title'] ?? '',
-                                        style: const TextStyle(fontSize: 13, color: Colors.white))),
-                                    ]),
-                                  )),
+                                  ...msg.cards.map((card) {
+                                    final isError = card['type'] == 'error';
+                                    return BlocBuilder<ChatBloc, ChatState>(
+                                      buildWhen: (prev, curr) => prev.isStreaming != curr.isStreaming,
+                                      builder: (context, state) {
+                                        final isStreaming = state.isStreaming;
+                                        return Container(
+                                          margin: const EdgeInsets.only(top: 8),
+                                          padding: const EdgeInsets.all(10),
+                                          decoration: BoxDecoration(
+                                            color: _card,
+                                            borderRadius: BorderRadius.circular(10),
+                                            border: isError ? Border.all(color: const Color(0xFFef4444), width: 1) : null,
+                                          ),
+                                          child: Row(children: [
+                                            if (isStreaming)
+                                              const SizedBox(
+                                                width: 16, height: 16,
+                                                child: CircularProgressIndicator(
+                                                  strokeWidth: 2,
+                                                  color: Color(0xFF60a5fa),
+                                                ),
+                                              )
+                                            else
+                                              Text(isError ? '❌' : '✅', style: const TextStyle(fontSize: 16)),
+                                            const SizedBox(width: 8),
+                                            Expanded(child: Text(
+                                              card['title'] ?? '',
+                                              style: TextStyle(
+                                                fontSize: 13,
+                                                color: isError ? const Color(0xFFfca5a5) : Colors.white,
+                                              ),
+                                            )),
+                                          ]),
+                                        );
+                                      },
+                                    );
+                                  }),
                                 ],
                               ),
                             ),
