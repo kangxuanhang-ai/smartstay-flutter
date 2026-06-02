@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../blocs/auth/auth_bloc.dart';
 import '../../blocs/auth/auth_state.dart';
 import '../../blocs/chat/chat_bloc.dart';
@@ -157,9 +159,38 @@ class _AIChatPageState extends State<AIChatPage> {
                                 children: [
                                   if (msg.isThinking)
                                     const TypingIndicator()
-                                  else if (msg.text.isNotEmpty)
-                                    Text(msg.text, style: TextStyle(
-                                      fontSize: 14, color: isUser ? Colors.white : const Color(0xFFc0c0e0))),
+                                  else if (msg.text.isNotEmpty && isUser)
+                                    Text(msg.text, style: const TextStyle(fontSize: 14, color: Colors.white))
+                                  else if (msg.text.isNotEmpty && !isUser)
+                                    MarkdownBody(
+                                      data: msg.text,
+                                      styleSheet: MarkdownStyleSheet(
+                                        p: const TextStyle(fontSize: 14, color: Color(0xFFc0c0e0), height: 1.5),
+                                        strong: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
+                                        em: const TextStyle(fontStyle: FontStyle.italic, color: Color(0xFFc0c0e0)),
+                                        code: TextStyle(
+                                          fontSize: 13,
+                                          color: const Color(0xFF60a5fa),
+                                          backgroundColor: _card,
+                                          fontFamily: 'monospace',
+                                        ),
+                                        codeblockDecoration: BoxDecoration(
+                                          color: _card,
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        blockquote: const TextStyle(color: Color(0xFF9ca3af)),
+                                        listBullet: const TextStyle(color: Color(0xFF60a5fa)),
+                                        a: const TextStyle(color: Color(0xFF60a5fa), decoration: TextDecoration.underline),
+                                        h1: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Colors.white),
+                                        h2: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white),
+                                        h3: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white),
+                                      ),
+                                      onTapLink: (text, href, title) {
+                                        if (href != null) {
+                                          launchUrl(Uri.parse(href));
+                                        }
+                                      },
+                                    ),
                                   ...msg.cards.map((card) {
                                     final isError = card['type'] == 'error';
                                     return BlocBuilder<ChatBloc, ChatState>(
