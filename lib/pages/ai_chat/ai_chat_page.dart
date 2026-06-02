@@ -8,6 +8,7 @@ import '../../blocs/chat/chat_bloc.dart';
 import '../../blocs/chat/chat_event.dart';
 import '../../blocs/chat/chat_state.dart';
 import '../../widgets/auth_prompt.dart';
+import '../../widgets/chat_card.dart';
 import '../../widgets/quick_chips.dart';
 import '../../widgets/typing_indicator.dart';
 
@@ -191,44 +192,15 @@ class _AIChatPageState extends State<AIChatPage> {
                                         }
                                       },
                                     ),
-                                  ...msg.cards.map((card) {
-                                    final isError = card['type'] == 'error';
-                                    return BlocBuilder<ChatBloc, ChatState>(
-                                      buildWhen: (prev, curr) => prev.isStreaming != curr.isStreaming,
-                                      builder: (context, state) {
-                                        final isStreaming = state.isStreaming;
-                                        return Container(
-                                          margin: const EdgeInsets.only(top: 8),
-                                          padding: const EdgeInsets.all(10),
-                                          decoration: BoxDecoration(
-                                            color: _card,
-                                            borderRadius: BorderRadius.circular(10),
-                                            border: isError ? Border.all(color: const Color(0xFFef4444), width: 1) : null,
-                                          ),
-                                          child: Row(children: [
-                                            if (isStreaming)
-                                              const SizedBox(
-                                                width: 16, height: 16,
-                                                child: CircularProgressIndicator(
-                                                  strokeWidth: 2,
-                                                  color: Color(0xFF60a5fa),
-                                                ),
-                                              )
-                                            else
-                                              Text(isError ? '❌' : '✅', style: const TextStyle(fontSize: 16)),
-                                            const SizedBox(width: 8),
-                                            Expanded(child: Text(
-                                              card['title'] ?? '',
-                                              style: TextStyle(
-                                                fontSize: 13,
-                                                color: isError ? const Color(0xFFfca5a5) : Colors.white,
-                                              ),
-                                            )),
-                                          ]),
-                                        );
-                                      },
-                                    );
-                                  }),
+                                  ...msg.cards.map((card) => BlocBuilder<ChatBloc, ChatState>(
+                                    buildWhen: (prev, curr) => prev.isStreaming != curr.isStreaming,
+                                    builder: (context, state) {
+                                      return ChatCardWidget(
+                                        card: card,
+                                        isStreaming: state.isStreaming,
+                                      );
+                                    },
+                                  )),
                                 ],
                               ),
                             ),
