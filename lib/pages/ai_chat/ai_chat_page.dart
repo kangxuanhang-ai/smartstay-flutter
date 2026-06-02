@@ -6,6 +6,7 @@ import '../../blocs/chat/chat_bloc.dart';
 import '../../blocs/chat/chat_event.dart';
 import '../../blocs/chat/chat_state.dart';
 import '../../widgets/auth_prompt.dart';
+import '../../widgets/quick_chips.dart';
 import '../../widgets/typing_indicator.dart';
 
 class AIChatPage extends StatefulWidget {
@@ -220,6 +221,20 @@ class _AIChatPageState extends State<AIChatPage> {
                 );
               },
             ),
+          ),
+          // ── Quick Chips (only when no messages) ──
+          BlocBuilder<ChatBloc, ChatState>(
+            buildWhen: (prev, curr) => prev.messages.length != curr.messages.length,
+            builder: (context, state) {
+              if (state.messages.isEmpty) {
+                return QuickChips(
+                  onSelected: (text) {
+                    context.read<ChatBloc>().add(ChatMessageSent(text));
+                  },
+                );
+              }
+              return const SizedBox.shrink();
+            },
           ),
           // ── Input Bar ──
           Container(
