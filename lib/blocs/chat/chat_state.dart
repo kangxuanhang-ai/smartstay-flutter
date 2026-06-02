@@ -1,8 +1,10 @@
+import '../../models/chat_card.dart';
+
 class ChatMessage {
   final String id;
   final bool isUser;
   final String text;
-  final List<Map<String, dynamic>> cards;
+  final List<ChatCard> cards;
   final bool isThinking;
 
   const ChatMessage({

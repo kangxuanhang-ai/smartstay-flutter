@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../models/chat_card.dart';
 
 class ChatCardWidget extends StatelessWidget {
-  final Map<String, dynamic> card;
+  final ChatCard card;
   final bool isStreaming;
 
   const ChatCardWidget({
@@ -15,8 +16,8 @@ class ChatCardWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final type = card['type'] as String? ?? 'info';
-    final title = card['title'] as String? ?? '';
+    final type = card.type.name;
+    final title = card.title;
     final isError = type == 'error';
 
     return GestureDetector(
