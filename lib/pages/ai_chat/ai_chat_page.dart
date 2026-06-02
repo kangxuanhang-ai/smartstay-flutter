@@ -226,13 +226,28 @@ class _AIChatPageState extends State<AIChatPage> {
                   child: const Icon(Icons.mic, color: _muted, size: 20),
                 ),
                 const SizedBox(width: 8),
-                GestureDetector(
-                  onTap: _send,
-                  child: Container(
-                    width: 40, height: 40,
-                    decoration: const BoxDecoration(color: _blue, shape: BoxShape.circle),
-                    child: const Icon(Icons.send, color: Colors.white, size: 18),
-                  ),
+                BlocBuilder<ChatBloc, ChatState>(
+                  buildWhen: (prev, curr) => prev.isStreaming != curr.isStreaming,
+                  builder: (context, state) {
+                    if (state.isStreaming) {
+                      return GestureDetector(
+                        onTap: () => context.read<ChatBloc>().add(const ChatStreamCancelled()),
+                        child: Container(
+                          width: 40, height: 40,
+                          decoration: const BoxDecoration(color: Color(0xFFef4444), shape: BoxShape.circle),
+                          child: const Icon(Icons.stop_rounded, color: Colors.white, size: 20),
+                        ),
+                      );
+                    }
+                    return GestureDetector(
+                      onTap: _send,
+                      child: Container(
+                        width: 40, height: 40,
+                        decoration: const BoxDecoration(color: _blue, shape: BoxShape.circle),
+                        child: const Icon(Icons.send, color: Colors.white, size: 18),
+                      ),
+                    );
+                  },
                 ),
               ],
             ),

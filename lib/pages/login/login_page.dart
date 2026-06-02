@@ -161,7 +161,26 @@ class _LoginPageState extends State<LoginPage> {
                     ),
 
                     const SizedBox(height: 16),
+                                        const SizedBox(height: 12),
 
+                    // ── Face Login ──
+                    Center(
+                      child: TextButton.icon(
+                        onPressed: () => context.go('/face-login'),
+                        icon: const Icon(Icons.face, color: _blue),
+                        label: const Text('刷脸登录', style: TextStyle(fontSize: 14, color: _blue)),
+                      ),
+                    ),
+
+                    // ── Guest mode ──
+                    Center(
+                      child: TextButton(
+                        onPressed: () => context.go('/home'),
+                        child: const Text('进入游客模式', style: TextStyle(fontSize: 14, color: _muted)),
+                      ),
+                    ),
+
+                    const SizedBox(height: 4),
                     // ── Register link ──
                     Center(
                       child: TextButton(

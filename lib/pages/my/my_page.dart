@@ -199,6 +199,7 @@ class _MyPageState extends State<MyPage> {
               TextButton(onPressed: () {
                 context.read<AuthBloc>().add(AuthLogoutRequested());
                 Navigator.pop(ctx);
+                context.go('/home');
               }, child: const Text('退出', style: TextStyle(color: Colors.redAccent))),
             ],
           ));

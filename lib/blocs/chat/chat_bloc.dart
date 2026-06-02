@@ -17,6 +17,7 @@ class _AuthExpiredException implements Exception {}
 class ChatBloc extends Bloc<Object, ChatState> {
   ChatBloc() : super(const ChatState()) {
     on<ChatMessageSent>(_onSend);
+    on<ChatStreamCancelled>(_onCancel);
   }
 
   final _api = ApiClient();
@@ -284,6 +285,14 @@ class ChatBloc extends Bloc<Object, ChatState> {
     if (streamError) {
       emit(state.copyWith(isStreaming: false, error: '连接中断'));
     }
+  }
+
+  void _onCancel(ChatStreamCancelled event, Emitter<ChatState> emit) {
+    _httpSub?.cancel();
+    _httpSub = null;
+    _webRequest?.abort();
+    _webRequest = null;
+    emit(state.copyWith(isStreaming: false));
   }
 
   @override
