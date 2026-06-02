@@ -3,12 +3,14 @@ class ChatMessage {
   final bool isUser;
   final String text;
   final List<Map<String, dynamic>> cards;
+  final bool isThinking;
 
   const ChatMessage({
     required this.id,
     required this.isUser,
     this.text = '',
     this.cards = const [],
+    this.isThinking = false,
   });
 }
 

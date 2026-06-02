@@ -31,7 +31,7 @@ class ChatBloc extends Bloc<Object, ChatState> {
     );
     final aiMsgId = 'ai_${DateTime.now().millisecondsSinceEpoch}';
 
-    final messages = [...state.messages, userMsg, ChatMessage(id: aiMsgId, isUser: false)];
+    final messages = [...state.messages, userMsg, ChatMessage(id: aiMsgId, isUser: false, isThinking: true)];
     emit(ChatState(messages: messages, isStreaming: true));
 
     final cards = <Map<String, dynamic>>[];
@@ -115,6 +115,7 @@ class ChatBloc extends Bloc<Object, ChatState> {
                 id: aiMsgId, isUser: false,
                 text: msgs[idx].text + content,
                 cards: List.from(cards),
+                isThinking: false,
               );
               emit(ChatState(messages: msgs, isStreaming: true));
             } else if (type == 'card') {
@@ -125,6 +126,7 @@ class ChatBloc extends Bloc<Object, ChatState> {
               msgs[idx] = ChatMessage(
                 id: aiMsgId, isUser: false,
                 text: msgs[idx].text, cards: List.from(cards),
+                isThinking: false,
               );
               emit(ChatState(messages: msgs, isStreaming: true));
             } else if (type == 'done') {
@@ -171,6 +173,7 @@ class ChatBloc extends Bloc<Object, ChatState> {
                   msgs[idx] = ChatMessage(
                     id: aiMsgId, isUser: false,
                     text: msgs[idx].text + content, cards: List.from(cards),
+                    isThinking: false,
                   );
                   emit(ChatState(messages: msgs, isStreaming: true));
                 }
@@ -257,6 +260,7 @@ class ChatBloc extends Bloc<Object, ChatState> {
             id: aiMsgId, isUser: false,
             text: msgs[idx].text + (sseEvent.data!['content'] ?? '').toString(),
             cards: List.from(cards),
+            isThinking: false,
           );
           return ChatState(messages: msgs, isStreaming: true);
         }
@@ -265,6 +269,7 @@ class ChatBloc extends Bloc<Object, ChatState> {
           cards.add(sseEvent.data!['card'] as Map<String, dynamic>);
           msgs[idx] = ChatMessage(
             id: aiMsgId, isUser: false, text: msgs[idx].text, cards: List.from(cards),
+            isThinking: false,
           );
           return ChatState(messages: msgs, isStreaming: true);
         }

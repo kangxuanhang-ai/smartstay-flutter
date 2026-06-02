@@ -6,6 +6,7 @@ import '../../blocs/chat/chat_bloc.dart';
 import '../../blocs/chat/chat_event.dart';
 import '../../blocs/chat/chat_state.dart';
 import '../../widgets/auth_prompt.dart';
+import '../../widgets/typing_indicator.dart';
 
 class AIChatPage extends StatefulWidget {
   const AIChatPage({super.key});
@@ -153,7 +154,9 @@ class _AIChatPageState extends State<AIChatPage> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  if (msg.text.isNotEmpty)
+                                  if (msg.isThinking)
+                                    const TypingIndicator()
+                                  else if (msg.text.isNotEmpty)
                                     Text(msg.text, style: TextStyle(
                                       fontSize: 14, color: isUser ? Colors.white : const Color(0xFFc0c0e0))),
                                   ...msg.cards.map((card) => Container(
