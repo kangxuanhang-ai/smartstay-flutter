@@ -18,6 +18,9 @@ class ChatBloc extends Bloc<Object, ChatState> {
   ChatBloc() : super(const ChatState()) {
     on<ChatMessageSent>(_onSend);
     on<ChatStreamCancelled>(_onCancel);
+    on<ChatSessionsLoadRequested>(_onLoadSessions);
+    on<ChatSessionSwitchRequested>(_onSwitchSession);
+    on<ChatNewSessionRequested>(_onNewSession);
   }
 
   final _api = ApiClient();
@@ -32,7 +35,7 @@ class ChatBloc extends Bloc<Object, ChatState> {
     final aiMsgId = 'ai_${DateTime.now().millisecondsSinceEpoch}';
 
     final messages = [...state.messages, userMsg, ChatMessage(id: aiMsgId, isUser: false, isThinking: true)];
-    emit(ChatState(messages: messages, isStreaming: true));
+    emit(ChatState(messages: messages, isStreaming: true, sessions: state.sessions, currentSessionId: state.currentSessionId));
 
     final cards = <Map<String, dynamic>>[];
 
@@ -117,7 +120,7 @@ class ChatBloc extends Bloc<Object, ChatState> {
                 cards: List.from(cards),
                 isThinking: false,
               );
-              emit(ChatState(messages: msgs, isStreaming: true));
+              emit(ChatState(messages: msgs, isStreaming: true, sessions: state.sessions, currentSessionId: state.currentSessionId));
             } else if (type == 'card') {
               cards.add(data['card'] as Map<String, dynamic>);
               final idx = state.messages.indexWhere((m) => m.id == aiMsgId);
@@ -128,7 +131,7 @@ class ChatBloc extends Bloc<Object, ChatState> {
                 text: msgs[idx].text, cards: List.from(cards),
                 isThinking: false,
               );
-              emit(ChatState(messages: msgs, isStreaming: true));
+              emit(ChatState(messages: msgs, isStreaming: true, sessions: state.sessions, currentSessionId: state.currentSessionId));
             } else if (type == 'done') {
               final idx = state.messages.indexWhere((m) => m.id == aiMsgId);
               if (idx == -1) continue;
@@ -137,7 +140,7 @@ class ChatBloc extends Bloc<Object, ChatState> {
                 id: aiMsgId, isUser: false,
                 text: msgs[idx].text, cards: List.from(cards),
               );
-              emit(ChatState(messages: msgs, isStreaming: false));
+              emit(ChatState(messages: msgs, isStreaming: false, sessions: state.sessions, currentSessionId: state.currentSessionId));
               if (!completer.isCompleted) completer.complete();
             }
           } catch (_) {}
@@ -175,7 +178,7 @@ class ChatBloc extends Bloc<Object, ChatState> {
                     text: msgs[idx].text + content, cards: List.from(cards),
                     isThinking: false,
                   );
-                  emit(ChatState(messages: msgs, isStreaming: true));
+                  emit(ChatState(messages: msgs, isStreaming: true, sessions: state.sessions, currentSessionId: state.currentSessionId));
                 }
               } else if (type == 'card') {
                 cards.add(data['card'] as Map<String, dynamic>);
@@ -190,7 +193,7 @@ class ChatBloc extends Bloc<Object, ChatState> {
             id: aiMsgId, isUser: false,
             text: msgs[idx].text, cards: List.from(cards),
           );
-          emit(ChatState(messages: msgs, isStreaming: false));
+          emit(ChatState(messages: msgs, isStreaming: false, sessions: state.sessions, currentSessionId: state.currentSessionId));
         }
         completer.complete();
       }
@@ -262,7 +265,7 @@ class ChatBloc extends Bloc<Object, ChatState> {
             cards: List.from(cards),
             isThinking: false,
           );
-          return ChatState(messages: msgs, isStreaming: true);
+          return ChatState(messages: msgs, isStreaming: true, sessions: state.sessions, currentSessionId: state.currentSessionId);
         }
 
         if (sseEvent.type == 'card' && sseEvent.data != null) {
@@ -271,14 +274,14 @@ class ChatBloc extends Bloc<Object, ChatState> {
             id: aiMsgId, isUser: false, text: msgs[idx].text, cards: List.from(cards),
             isThinking: false,
           );
-          return ChatState(messages: msgs, isStreaming: true);
+          return ChatState(messages: msgs, isStreaming: true, sessions: state.sessions, currentSessionId: state.currentSessionId);
         }
 
         if (sseEvent.type == 'done') {
           msgs[idx] = ChatMessage(
             id: aiMsgId, isUser: false, text: msgs[idx].text, cards: List.from(cards),
           );
-          return ChatState(messages: msgs, isStreaming: false);
+          return ChatState(messages: msgs, isStreaming: false, sessions: state.sessions, currentSessionId: state.currentSessionId);
         }
 
         return state;
@@ -290,6 +293,42 @@ class ChatBloc extends Bloc<Object, ChatState> {
     if (streamError) {
       emit(state.copyWith(isStreaming: false, error: '连接中断'));
     }
+  }
+
+  Future<void> _onLoadSessions(
+    ChatSessionsLoadRequested event,
+    Emitter<ChatState> emit,
+  ) async {
+    try {
+      final resp = await _api.get('/api/ai/chat/sessions');
+      final sessions = (resp.data as List).cast<Map<String, dynamic>>();
+      emit(state.copyWith(sessions: sessions));
+    } catch (_) {}
+  }
+
+  Future<void> _onSwitchSession(
+    ChatSessionSwitchRequested event,
+    Emitter<ChatState> emit,
+  ) async {
+    try {
+      final resp = await _api.get('/api/ai/chat/${event.sessionId}/history');
+      final history = resp.data as List;
+      final messages = history.map((m) => ChatMessage(
+        id: m['id'] as String,
+        isUser: m['role'] == 'user',
+        text: m['content'] as String,
+        cards: (m['tool_calls'] as Map<String, dynamic>?)?['cards'] as List<Map<String, dynamic>>? ?? [],
+      )).toList();
+      emit(ChatState(
+        messages: messages,
+        currentSessionId: event.sessionId,
+        sessions: state.sessions,
+      ));
+    } catch (_) {}
+  }
+
+  void _onNewSession(ChatNewSessionRequested event, Emitter<ChatState> emit) {
+    emit(ChatState(sessions: state.sessions));
   }
 
   void _onCancel(ChatStreamCancelled event, Emitter<ChatState> emit) {

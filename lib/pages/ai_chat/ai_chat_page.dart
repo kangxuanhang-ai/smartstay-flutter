@@ -11,6 +11,7 @@ import '../../widgets/auth_prompt.dart';
 import '../../widgets/chat_card.dart';
 import '../../widgets/quick_chips.dart';
 import '../../widgets/typing_indicator.dart';
+import 'session_list_page.dart';
 
 class AIChatPage extends StatefulWidget {
   const AIChatPage({super.key});
@@ -98,7 +99,21 @@ class _AIChatPageState extends State<AIChatPage> {
                       ],
                     ),
                   ),
-                  const SizedBox(width: 24),
+                  GestureDetector(
+                    onTap: () {
+                      context.read<ChatBloc>().add(const ChatSessionsLoadRequested());
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (_) => BlocProvider.value(
+                          value: context.read<ChatBloc>(),
+                          child: const SessionListPage(),
+                        ),
+                      );
+                    },
+                    child: const Icon(Icons.history_rounded, color: Color(0xFF9ca3af), size: 22),
+                  ),
                 ],
               ),
             ),
