@@ -22,6 +22,10 @@ class ChatState {
   final String? error;
   final List<Map<String, dynamic>> sessions;
   final String? currentSessionId;
+  final bool isRecording;
+  final bool isTranscribing;
+  final int recordingDuration;
+  final String? transcribedText;
 
   const ChatState({
     this.messages = const [],
@@ -29,6 +33,10 @@ class ChatState {
     this.error,
     this.sessions = const [],
     this.currentSessionId,
+    this.isRecording = false,
+    this.isTranscribing = false,
+    this.recordingDuration = 0,
+    this.transcribedText,
   });
 
   ChatState copyWith({
@@ -37,6 +45,11 @@ class ChatState {
     String? error,
     List<Map<String, dynamic>>? sessions,
     String? currentSessionId,
+    bool? isRecording,
+    bool? isTranscribing,
+    int? recordingDuration,
+    String? transcribedText,
+    bool clearTranscribedText = false,
   }) {
     return ChatState(
       messages: messages ?? this.messages,
@@ -44,6 +57,11 @@ class ChatState {
       error: error,
       sessions: sessions ?? this.sessions,
       currentSessionId: currentSessionId ?? this.currentSessionId,
+      isRecording: isRecording ?? this.isRecording,
+      isTranscribing: isTranscribing ?? this.isTranscribing,
+      recordingDuration: recordingDuration ?? this.recordingDuration,
+      transcribedText:
+          clearTranscribedText ? null : (transcribedText ?? this.transcribedText),
     );
   }
 }
