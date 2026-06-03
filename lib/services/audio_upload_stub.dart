@@ -1,5 +1,9 @@
-/// Stub for conditional import. See audio_upload_io.dart and audio_upload_web.dart.
+import 'package:dio/dio.dart';
 
-Future<List<int>> readAudioBytes(String path) async {
+Future<String> uploadAndTranscribe({
+  required String path,
+  required Dio dio,
+  String? accessToken,
+}) {
   throw UnsupportedError('Platform not supported');
 }
