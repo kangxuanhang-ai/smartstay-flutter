@@ -19,7 +19,7 @@ class VoiceServiceWeb {
     _duration = 0;
 
     final stream = await html.window.navigator.mediaDevices!.getUserMedia({'audio': true});
-    _recorder = html.MediaRecorder(stream, {'mimeType': 'audio/webm'});
+    _recorder = html.MediaRecorder(stream, {'mimeType': 'audio/mp4'});
 
     _recorder!.addEventListener('dataavailable', (html.Event e) {
       final blobEvent = e as html.BlobEvent;
@@ -30,7 +30,7 @@ class VoiceServiceWeb {
 
     _stopCompleter = Completer<void>();
     _recorder!.addEventListener('stop', (_) {
-      _recordedBlob = html.Blob(_chunks, 'audio/webm');
+      _recordedBlob = html.Blob(_chunks, 'audio/mp4');
       stream.getTracks().forEach((t) => t.stop());
       if (_stopCompleter != null && !_stopCompleter!.isCompleted) {
         _stopCompleter!.complete();
@@ -57,7 +57,7 @@ class VoiceServiceWeb {
 
     // 直接用 FormData.appendBlob 上传，不做任何字节转换
     final formData = html.FormData();
-    formData.appendBlob('audio', _recordedBlob!, 'recording.webm');
+    formData.appendBlob('audio', _recordedBlob!, 'recording.m4a');
 
     final response = await html.HttpRequest.request(
       '$baseUrl/api/ai/transcribe',
