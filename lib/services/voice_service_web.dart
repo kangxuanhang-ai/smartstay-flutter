@@ -51,30 +51,10 @@ class VoiceServiceWeb {
     _recorder!.stop();
     await _stopCompleter!.future;
     if (_recordedBlob == null) return null;
-
-    // 用 XHR 获取 blob 内容，避免 FileReader 的 NativeArrayBuffer 问题
-    final completer = Completer<List<int>>();
-    final xhr = html.HttpRequest();
-    xhr.open('GET', html.Url.createObjectUrlFromBlob(_recordedBlob!));
-    xhr.responseType = 'blob';
-
-    xhr.onLoad.listen((_) {
-      // xhr.response 是 Blob，再用 FileReader 读取
-      // 但用 readAsText 以 binary 方式读取，避免 ArrayBuffer
-      final responseBlob = xhr.response as html.Blob;
-      _readBlobAsBase64(responseBlob).then(completer.complete).catchError(completer.completeError);
-    });
-
-    xhr.onError.listen((_) {
-      completer.completeError('读取音频失败');
-    });
-
-    xhr.send();
-    return completer.future;
+    return _readBlobAsBase64(_recordedBlob!);
   }
 
   Future<List<int>> _readBlobAsBase64(html.Blob blob) async {
-    // 使用 readAsDataUrl 获取 base64 编码
     final reader = html.FileReader();
     final c = Completer<List<int>>();
 
@@ -82,14 +62,15 @@ class VoiceServiceWeb {
       try {
         final dataUrl = reader.result as String;
         final base64Part = dataUrl.split(',').last;
-        c.complete(base64Decode(base64Part));
+        final bytes = base64Decode(base64Part);
+        c.complete(bytes);
       } catch (e) {
         c.completeError('解码音频失败: $e');
       }
     });
 
-    reader.onError.listen((_) {
-      c.completeError('读取音频数据失败');
+    reader.onError.listen((e) {
+      c.completeError('读取音频失败: $e');
     });
 
     reader.readAsDataUrl(blob);
