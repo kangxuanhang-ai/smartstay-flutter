@@ -6,6 +6,6 @@ Future<List<int>> readAudioBytes(String path) async {
     path,
     responseType: 'arraybuffer',
   );
-  final data = request.response as TypedData;
-  return data.buffer.asUint8List();
+  final buffer = request.response as ByteBuffer;
+  return Uint8List.view(buffer);
 }
