@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
 
 Future<String> uploadAndTranscribe({
-  required String path,
+  required List<int> bytes,
   required Dio dio,
   String? accessToken,
 }) {

@@ -1,16 +1,12 @@
-import 'dart:io';
 import 'package:dio/dio.dart';
 
 Future<String> uploadAndTranscribe({
-  required String path,
+  required List<int> bytes,
   required Dio dio,
   String? accessToken,
 }) async {
-  final file = File(path);
-  final bytes = await file.readAsBytes();
-
   final formData = FormData.fromMap({
-    'audio': MultipartFile.fromBytes(bytes, filename: 'recording.m4a'),
+    'audio': MultipartFile.fromBytes(bytes, filename: 'recording.webm'),
   });
 
   final resp = await dio.post(

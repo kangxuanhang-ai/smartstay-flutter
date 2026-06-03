@@ -5,7 +5,7 @@ import '../../core/api_client.dart';
 import '../../core/sse_stream_handler.dart';
 import '../../models/chat_card.dart';
 import '../../services/chat_stream_service.dart';
-import '../../services/voice_service.dart';
+import '../../services/voice_service_factory.dart';
 import '../../services/audio_upload.dart';
 import 'chat_event.dart';
 import 'chat_state.dart';
@@ -29,7 +29,7 @@ class ChatBloc extends Bloc<Object, ChatState> {
 
   final _api = ApiClient();
   final _streamService = ChatStreamService();
-  final _voiceService = VoiceService();
+  final _voiceService = createVoiceService();
   Timer? _recordingTimer;
   bool _pendingNewSession = false;
 
@@ -246,10 +246,10 @@ class ChatBloc extends Bloc<Object, ChatState> {
     _recordingTimer = null;
 
     try {
-      final path = await _voiceService.stopRecording();
+      final bytes = await _voiceService.stopRecording();
       emit(state.copyWith(isRecording: false, isTranscribing: true));
 
-      if (path == null || path.isEmpty) {
+      if (bytes == null || bytes.isEmpty) {
         emit(state.copyWith(isTranscribing: false, error: '录音失败，请重试'));
         return;
       }
@@ -259,24 +259,17 @@ class ChatBloc extends Bloc<Object, ChatState> {
         return;
       }
 
-      // 分步执行以便定位错误
-      String text;
-      try {
-        text = await uploadAndTranscribe(
-          path: path,
-          dio: _api.dio,
-          accessToken: _api.accessToken,
-        );
-      } catch (uploadError) {
-        emit(state.copyWith(isTranscribing: false, error: '上传失败: $uploadError'));
-        return;
-      }
+      final text = await uploadAndTranscribe(
+        bytes: bytes,
+        dio: _api.dio,
+        accessToken: _api.accessToken,
+      );
 
       emit(state.copyWith(isTranscribing: false, transcribedText: text));
     } catch (e) {
       emit(state.copyWith(
         isTranscribing: false,
-        error: '录音停止失败: $e',
+        error: '识别失败: $e',
       ));
     }
   }

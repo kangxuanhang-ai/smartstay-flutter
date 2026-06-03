@@ -1,11 +1,12 @@
 import 'dart:convert';
 import 'dart:html' as html;
+import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import '../core/api_client.dart';
 
-/// Web 平台：直接用 dart:html HttpRequest 上传 blob 音频
+/// Web 平台：用 dart:html HttpRequest 上传音频字节
 Future<String> uploadAndTranscribe({
-  required String path,
+  required List<int> bytes,
   required Dio dio,
   String? accessToken,
 }) async {
@@ -13,18 +14,12 @@ Future<String> uploadAndTranscribe({
   final token = accessToken ?? api.accessToken;
   final baseUrl = api.dio.options.baseUrl;
 
-  // 从 blob URL 获取 blob 对象
-  final blobRequest = await html.HttpRequest.request(
-    path,
-    responseType: 'blob',
-  );
-  final blob = blobRequest.response as html.Blob;
-
   // 构建 FormData
+  final blob = html.Blob([Uint8List.fromList(bytes)], 'audio/webm');
   final formData = html.FormData();
-  formData.appendBlob('audio', blob, 'recording.m4a');
+  formData.appendBlob('audio', blob, 'recording.webm');
 
-  // 用 HttpRequest 发送
+  // 用 HttpRequest 发送（绕过 Dio 的 MultipartFile web 兼容问题）
   final response = await html.HttpRequest.request(
     '$baseUrl/api/ai/transcribe',
     method: 'POST',
