@@ -11,7 +11,15 @@ class _VoiceServiceWebAdapter implements VoiceServiceBase {
   Future<void> startRecording() => _inner.startRecording();
 
   @override
-  Future<List<int>?> stopRecording() => _inner.stopRecording();
+  Future<List<int>?> stopRecording() async {
+    // Web 平台不做字节转换，返回 null
+    return null;
+  }
+
+  @override
+  Future<String?> stopAndUploadDirect(String baseUrl, String? token) {
+    return _inner.stopAndUpload(baseUrl, token);
+  }
 
   @override
   Future<void> cancelRecording() => _inner.cancelRecording();

@@ -246,16 +246,29 @@ class ChatBloc extends Bloc<Object, ChatState> {
     _recordingTimer = null;
 
     try {
-      final bytes = await _voiceService.stopRecording();
-      emit(state.copyWith(isRecording: false, isTranscribing: true));
-
-      if (bytes == null || bytes.isEmpty) {
-        emit(state.copyWith(isTranscribing: false, error: '录音失败，请重试'));
+      if (_voiceService.duration < 1) {
+        _voiceService.cancelRecording();
+        emit(state.copyWith(isRecording: false, error: '录音时间太短'));
         return;
       }
 
-      if (_voiceService.duration < 1) {
-        emit(state.copyWith(isTranscribing: false, error: '录音时间太短'));
+      emit(state.copyWith(isRecording: false, isTranscribing: true));
+
+      // 先尝试 Web 直接上传（stopAndUploadDirect 内部会 stop 录音）
+      final directResult = await _voiceService.stopAndUploadDirect(
+        _api.dio.options.baseUrl,
+        _api.accessToken,
+      );
+
+      if (directResult != null) {
+        emit(state.copyWith(isTranscribing: false, transcribedText: directResult));
+        return;
+      }
+
+      // Native 平台：stopRecording 获取字节
+      final bytes = await _voiceService.stopRecording();
+      if (bytes == null || bytes.isEmpty) {
+        emit(state.copyWith(isTranscribing: false, error: '录音失败，请重试'));
         return;
       }
 

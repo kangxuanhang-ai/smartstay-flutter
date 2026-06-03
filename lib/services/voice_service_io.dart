@@ -24,6 +24,11 @@ class _VoiceServiceNative implements VoiceServiceBase {
   Future<void> cancelRecording() => _inner.cancelRecording();
 
   @override
+  Future<String?> stopAndUploadDirect(String baseUrl, String? token) async {
+    return null; // Native 平台不使用此方法
+  }
+
+  @override
   void dispose() => _inner.dispose();
 }
 

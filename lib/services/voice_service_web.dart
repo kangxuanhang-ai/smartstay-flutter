@@ -43,38 +43,34 @@ class VoiceServiceWeb {
     });
   }
 
-  Future<List<int>?> stopRecording() async {
+  /// 直接上传 blob 到后端，返回识别文字
+  /// 完全绕过字节转换
+  Future<String?> stopAndUpload(String baseUrl, String? token) async {
     _durationTimer?.cancel();
     _durationTimer = null;
     if (_recorder == null) return null;
+    if (_recorder!.state != 'recording') return null;
 
     _recorder!.stop();
     await _stopCompleter!.future;
     if (_recordedBlob == null) return null;
-    return _readBlobAsBase64(_recordedBlob!);
-  }
 
-  Future<List<int>> _readBlobAsBase64(html.Blob blob) async {
-    final reader = html.FileReader();
-    final c = Completer<List<int>>();
+    // 直接用 FormData.appendBlob 上传，不做任何字节转换
+    final formData = html.FormData();
+    formData.appendBlob('audio', _recordedBlob!, 'recording.webm');
 
-    reader.onLoad.listen((_) {
-      try {
-        final dataUrl = reader.result as String;
-        final base64Part = dataUrl.split(',').last;
-        final bytes = base64Decode(base64Part);
-        c.complete(bytes);
-      } catch (e) {
-        c.completeError('解码音频失败: $e');
-      }
-    });
+    final response = await html.HttpRequest.request(
+      '$baseUrl/api/ai/transcribe',
+      method: 'POST',
+      sendData: formData,
+      requestHeaders: {
+        if (token != null) 'Authorization': 'Bearer $token',
+      },
+    );
 
-    reader.onError.listen((e) {
-      c.completeError('读取音频失败: $e');
-    });
-
-    reader.readAsDataUrl(blob);
-    return c.future;
+    final body = response.responseText ?? '{}';
+    final data = jsonDecode(body) as Map<String, dynamic>;
+    return data['text'] as String?;
   }
 
   Future<void> cancelRecording() async {
