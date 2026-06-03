@@ -207,15 +207,13 @@ class _AIChatPageState extends State<AIChatPage> {
                                         }
                                       },
                                     ),
-                                  ...msg.cards.map((card) => BlocBuilder<ChatBloc, ChatState>(
-                                    builder: (context, state) {
-                                      final isLastMsg = msg == state.messages.last;
-                                      return ChatCardWidget(
-                                        card: card,
-                                        isStreaming: state.isStreaming && isLastMsg,
-                                      );
-                                    },
-                                  )),
+                                  ...msg.cards.map((card) {
+                                    final isLastMsg = idx == state.messages.length - 1;
+                                    return ChatCardWidget(
+                                      card: card,
+                                      isStreaming: state.isStreaming && isLastMsg,
+                                    );
+                                  }),
                                 ],
                               ),
                             ),
