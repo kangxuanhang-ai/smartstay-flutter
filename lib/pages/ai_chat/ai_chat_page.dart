@@ -33,6 +33,12 @@ class _AIChatPageState extends State<AIChatPage> {
     _textCtrl.clear();
   }
 
+  String _formatDuration(int seconds) {
+    final m = (seconds ~/ 60).toString().padLeft(2, '0');
+    final s = (seconds % 60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
+
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollCtrl.hasClients) {
@@ -53,11 +59,31 @@ class _AIChatPageState extends State<AIChatPage> {
   Widget build(BuildContext context) {
     final isLoggedIn = context.watch<AuthBloc>().state.status == AuthStatus.authenticated;
 
-    return Scaffold(
-      backgroundColor: _bg,
-      body: isLoggedIn ? _buildBody() : const AuthPrompt.overlay(
-        icon: '🤖', title: 'AI 虚拟管家',
-        description: '登录后即可享受智能对话\n控制设备 · 查询信息 · 提交服务'),
+    return BlocListener<ChatBloc, ChatState>(
+      listenWhen: (prev, curr) =>
+          (curr.transcribedText != null && curr.transcribedText != prev.transcribedText) ||
+          (curr.error != null && prev.error == null),
+      listener: (context, state) {
+        if (state.transcribedText != null && state.transcribedText!.isNotEmpty) {
+          _textCtrl.text = state.transcribedText!;
+          _textCtrl.selection = TextSelection.fromPosition(
+            TextPosition(offset: _textCtrl.text.length),
+          );
+          context.read<ChatBloc>().add(const ChatClearTranscribedText());
+        }
+        if (state.error != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(state.error!), backgroundColor: const Color(0xFFef4444)),
+          );
+          context.read<ChatBloc>().add(const ChatClearError());
+        }
+      },
+      child: Scaffold(
+        backgroundColor: _bg,
+        body: isLoggedIn ? _buildBody() : const AuthPrompt.overlay(
+          icon: '🤖', title: 'AI 虚拟管家',
+          description: '登录后即可享受智能对话\n控制设备 · 查询信息 · 提交服务'),
+      ),
     );
   }
 
@@ -262,33 +288,92 @@ class _AIChatPageState extends State<AIChatPage> {
             child: Row(
               children: [
                 Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    decoration: BoxDecoration(
-                      color: _card, borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: TextField(
-                      controller: _textCtrl,
-                      onSubmitted: (_) => _send(),
-                      style: const TextStyle(color: Colors.white, fontSize: 14),
-                      decoration: const InputDecoration(
-                        hintText: '输入您的需求...',
-                        hintStyle: TextStyle(color: _muted),
-                        border: InputBorder.none,
-                      ),
-                    ),
+                  child: BlocBuilder<ChatBloc, ChatState>(
+                    buildWhen: (prev, curr) =>
+                        prev.isRecording != curr.isRecording ||
+                        prev.isTranscribing != curr.isTranscribing ||
+                        prev.recordingDuration != curr.recordingDuration,
+                    builder: (context, state) {
+                      final isVoiceActive = state.isRecording || state.isTranscribing;
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        decoration: BoxDecoration(
+                          color: _card, borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: isVoiceActive
+                            ? Center(
+                                child: Text(
+                                  state.isRecording
+                                      ? '录音中 ${_formatDuration(state.recordingDuration)}...'
+                                      : '识别中...',
+                                  style: const TextStyle(color: _muted, fontSize: 14),
+                                ),
+                              )
+                            : TextField(
+                                controller: _textCtrl,
+                                onSubmitted: (_) => _send(),
+                                style: const TextStyle(color: Colors.white, fontSize: 14),
+                                decoration: const InputDecoration(
+                                  hintText: '输入您的需求...',
+                                  hintStyle: TextStyle(color: _muted),
+                                  border: InputBorder.none,
+                                ),
+                              ),
+                      );
+                    },
                   ),
                 ),
                 const SizedBox(width: 8),
-                Container(
-                  width: 40, height: 40,
-                  decoration: const BoxDecoration(color: _card, shape: BoxShape.circle),
-                  child: const Icon(Icons.mic, color: _muted, size: 20),
+                BlocBuilder<ChatBloc, ChatState>(
+                  buildWhen: (prev, curr) =>
+                      prev.isRecording != curr.isRecording ||
+                      prev.isTranscribing != curr.isTranscribing,
+                  builder: (context, state) {
+                    if (state.isTranscribing) {
+                      return Container(
+                        width: 40, height: 40,
+                        decoration: const BoxDecoration(color: _card, shape: BoxShape.circle),
+                        child: const SizedBox(
+                          width: 18, height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: _muted),
+                        ),
+                      );
+                    }
+                    return GestureDetector(
+                      onTap: () {
+                        final bloc = context.read<ChatBloc>();
+                        if (state.isRecording) {
+                          bloc.add(const ChatVoiceRecordStopped());
+                        } else {
+                          bloc.add(const ChatVoiceRecordStarted());
+                        }
+                      },
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        width: 40, height: 40,
+                        decoration: BoxDecoration(
+                          color: state.isRecording ? const Color(0xFFef4444) : _card,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          state.isRecording ? Icons.stop_rounded : Icons.mic,
+                          color: state.isRecording ? Colors.white : _muted,
+                          size: 20,
+                        ),
+                      ),
+                    );
+                  },
                 ),
                 const SizedBox(width: 8),
                 BlocBuilder<ChatBloc, ChatState>(
-                  buildWhen: (prev, curr) => prev.isStreaming != curr.isStreaming,
+                  buildWhen: (prev, curr) =>
+                      prev.isStreaming != curr.isStreaming ||
+                      prev.isRecording != curr.isRecording ||
+                      prev.isTranscribing != curr.isTranscribing,
                   builder: (context, state) {
+                    if (state.isRecording || state.isTranscribing) {
+                      return const SizedBox(width: 40, height: 40);
+                    }
                     if (state.isStreaming) {
                       return GestureDetector(
                         onTap: () => context.read<ChatBloc>().add(const ChatStreamCancelled()),
