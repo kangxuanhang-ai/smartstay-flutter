@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'package:dio/dio.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/api_client.dart';
 import '../../core/sse_stream_handler.dart';
 import '../../models/chat_card.dart';
 import '../../services/chat_stream_service.dart';
+import '../../services/voice_service.dart';
 import 'chat_event.dart';
 import 'chat_state.dart';
 
@@ -14,10 +16,20 @@ class ChatBloc extends Bloc<Object, ChatState> {
     on<ChatSessionsLoadRequested>(_onLoadSessions);
     on<ChatSessionSwitchRequested>(_onSwitchSession);
     on<ChatNewSessionRequested>(_onNewSession);
+    on<ChatVoiceRecordStarted>(_onVoiceStart);
+    on<ChatVoiceRecordStopped>(_onVoiceStop);
+    on<ChatClearTranscribedText>((event, emit) {
+      emit(state.copyWith(clearTranscribedText: true));
+    });
+    on<ChatClearError>((event, emit) {
+      emit(state.copyWith(error: null));
+    });
   }
 
   final _api = ApiClient();
   final _streamService = ChatStreamService();
+  final _voiceService = VoiceService();
+  Timer? _recordingTimer;
   bool _pendingNewSession = false;
 
   Future<void> _onSend(ChatMessageSent event, Emitter<ChatState> emit) async {
@@ -199,9 +211,79 @@ class ChatBloc extends Bloc<Object, ChatState> {
     emit(ChatState(sessions: state.sessions));
   }
 
+  void _startDurationTimer() {
+    _recordingTimer?.cancel();
+    _recordingTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      final dur = state.recordingDuration + 1;
+      if (dur >= 60) {
+        add(const ChatVoiceRecordStopped());
+      } else {
+        emit(state.copyWith(recordingDuration: dur));
+      }
+    });
+  }
+
+  Future<void> _onVoiceStart(
+    ChatVoiceRecordStarted event,
+    Emitter<ChatState> emit,
+  ) async {
+    try {
+      await _voiceService.startRecording();
+      emit(state.copyWith(isRecording: true, recordingDuration: 0, error: null));
+      _startDurationTimer();
+    } catch (e) {
+      final msg = e.toString().contains('权限') ? '请在设置中开启麦克风权限' : '录音失败，请重试';
+      emit(state.copyWith(error: msg));
+    }
+  }
+
+  Future<void> _onVoiceStop(
+    ChatVoiceRecordStopped event,
+    Emitter<ChatState> emit,
+  ) async {
+    _recordingTimer?.cancel();
+    _recordingTimer = null;
+
+    try {
+      final path = await _voiceService.stopRecording();
+      emit(state.copyWith(isRecording: false, isTranscribing: true));
+
+      if (path == null || path.isEmpty) {
+        emit(state.copyWith(isTranscribing: false, error: '录音失败，请重试'));
+        return;
+      }
+
+      if (_voiceService.duration < 1) {
+        emit(state.copyWith(isTranscribing: false, error: '录音时间太短'));
+        return;
+      }
+
+      final formData = FormData.fromMap({
+        'audio': await MultipartFile.fromFile(path, filename: 'recording.m4a'),
+      });
+
+      final resp = await _api.post('/api/ai/transcribe', data: formData);
+      final text = resp.data['text'] as String?;
+
+      if (text == null || text.isEmpty) {
+        emit(state.copyWith(isTranscribing: false, error: '未识别到语音内容'));
+        return;
+      }
+
+      emit(state.copyWith(isTranscribing: false, transcribedText: text));
+    } catch (e) {
+      emit(state.copyWith(
+        isTranscribing: false,
+        error: e is DioException ? '识别失败，请重试' : '识别失败: $e',
+      ));
+    }
+  }
+
   @override
   Future<void> close() {
+    _recordingTimer?.cancel();
     _streamService.cancel();
+    _voiceService.dispose();
     return super.close();
   }
 }
