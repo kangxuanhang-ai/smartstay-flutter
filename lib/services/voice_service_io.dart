@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'voice_service_stub.dart';
+import 'voice_service_base.dart';
 import 'voice_service.dart';
 
 class _VoiceServiceNative implements VoiceServiceBase {

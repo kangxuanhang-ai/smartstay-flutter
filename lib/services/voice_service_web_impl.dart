@@ -1,4 +1,4 @@
-import 'voice_service_stub.dart';
+import 'voice_service_base.dart';
 import 'voice_service_web.dart';
 
 class _VoiceServiceWebAdapter implements VoiceServiceBase {
@@ -11,11 +11,7 @@ class _VoiceServiceWebAdapter implements VoiceServiceBase {
   Future<void> startRecording() => _inner.startRecording();
 
   @override
-  Future<List<int>?> stopRecording() async {
-    final bytesFuture = await _inner.stopRecording();
-    if (bytesFuture == null) return null;
-    return bytesFuture;
-  }
+  Future<List<int>?> stopRecording() => _inner.stopRecording();
 
   @override
   Future<void> cancelRecording() => _inner.cancelRecording();
