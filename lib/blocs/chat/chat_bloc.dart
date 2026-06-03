@@ -18,6 +18,7 @@ class ChatBloc extends Bloc<Object, ChatState> {
 
   final _api = ApiClient();
   final _streamService = ChatStreamService();
+  bool _pendingNewSession = false;
 
   Future<void> _onSend(ChatMessageSent event, Emitter<ChatState> emit) async {
     final userMsg = ChatMessage(
@@ -41,8 +42,10 @@ class ChatBloc extends Bloc<Object, ChatState> {
 
     final cards = <ChatCard>[];
     var retried = false;
+    final isFirstSend = _pendingNewSession;
+    _pendingNewSession = false;
 
-    await for (final streamEvent in _streamService.sendMessage(event.message)) {
+    await for (final streamEvent in _streamService.sendMessage(event.message, newSession: isFirstSend)) {
       if (streamEvent is ChatStreamText) {
         final idx = state.messages.indexWhere((m) => m.id == aiMsgId);
         if (idx == -1) continue;
@@ -192,6 +195,7 @@ class ChatBloc extends Bloc<Object, ChatState> {
   }
 
   void _onNewSession(ChatNewSessionRequested event, Emitter<ChatState> emit) {
+    _pendingNewSession = true;
     emit(ChatState(sessions: state.sessions));
   }
 

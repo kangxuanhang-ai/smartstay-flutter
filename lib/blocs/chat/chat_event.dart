@@ -1,6 +1,7 @@
 class ChatMessageSent {
   final String message;
-  const ChatMessageSent(this.message);
+  final bool newSession;
+  const ChatMessageSent(this.message, {this.newSession = false});
 }
 
 class ChatStreamCancelled {

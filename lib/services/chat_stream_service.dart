@@ -13,17 +13,17 @@ class ChatStreamService {
   http.Client? _httpClient;
   html.HttpRequest? _webRequest;
 
-  Stream<ChatStreamEvent> sendMessage(String message) async* {
+  Stream<ChatStreamEvent> sendMessage(String message, {bool newSession = false}) async* {
     final handler = SSEStreamHandler();
 
     if (kIsWeb) {
-      yield* _sendViaWeb(message, handler);
+      yield* _sendViaWeb(message, handler, newSession: newSession);
     } else {
-      yield* _sendViaNative(message, handler);
+      yield* _sendViaNative(message, handler, newSession: newSession);
     }
   }
 
-  Stream<ChatStreamEvent> _sendViaNative(String message, SSEStreamHandler handler) async* {
+  Stream<ChatStreamEvent> _sendViaNative(String message, SSEStreamHandler handler, {bool newSession = false}) async* {
     final uri = Uri.parse('${_api.dio.options.baseUrl}/api/ai/chat');
     final request = http.Request('POST', uri);
     request.headers['Content-Type'] = 'application/json';
@@ -31,7 +31,7 @@ class ChatStreamService {
     if (token != null) {
       request.headers['Authorization'] = 'Bearer $token';
     }
-    request.body = jsonEncode({'message': message});
+    request.body = jsonEncode({'message': message, 'new_session': newSession});
 
     final client = http.Client();
     _httpClient = client;
@@ -64,7 +64,7 @@ class ChatStreamService {
     }
   }
 
-  Stream<ChatStreamEvent> _sendViaWeb(String message, SSEStreamHandler handler) async* {
+  Stream<ChatStreamEvent> _sendViaWeb(String message, SSEStreamHandler handler, {bool newSession = false}) async* {
     final completer = Completer<void>();
     final token = _api.accessToken;
 
@@ -111,7 +111,7 @@ class ChatStreamService {
       }
     });
 
-    request.send(jsonEncode({'message': message}));
+    request.send(jsonEncode({'message': message, 'new_session': newSession}));
 
     yield* handler.stream;
     await completer.future;
