@@ -259,17 +259,24 @@ class ChatBloc extends Bloc<Object, ChatState> {
         return;
       }
 
-      final text = await uploadAndTranscribe(
-        path: path,
-        dio: _api.dio,
-        accessToken: _api.accessToken,
-      );
+      // 分步执行以便定位错误
+      String text;
+      try {
+        text = await uploadAndTranscribe(
+          path: path,
+          dio: _api.dio,
+          accessToken: _api.accessToken,
+        );
+      } catch (uploadError) {
+        emit(state.copyWith(isTranscribing: false, error: '上传失败: $uploadError'));
+        return;
+      }
 
       emit(state.copyWith(isTranscribing: false, transcribedText: text));
     } catch (e) {
       emit(state.copyWith(
         isTranscribing: false,
-        error: e is DioException ? '识别失败，请重试' : '识别失败: $e',
+        error: '录音停止失败: $e',
       ));
     }
   }
