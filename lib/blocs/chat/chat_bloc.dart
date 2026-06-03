@@ -6,6 +6,7 @@ import '../../core/sse_stream_handler.dart';
 import '../../models/chat_card.dart';
 import '../../services/chat_stream_service.dart';
 import '../../services/voice_service.dart';
+import '../../services/audio_upload.dart';
 import 'chat_event.dart';
 import 'chat_state.dart';
 
@@ -258,17 +259,11 @@ class ChatBloc extends Bloc<Object, ChatState> {
         return;
       }
 
-      final formData = FormData.fromMap({
-        'audio': await MultipartFile.fromFile(path, filename: 'recording.m4a'),
-      });
-
-      final resp = await _api.post('/api/ai/transcribe', data: formData);
-      final text = resp.data['text'] as String?;
-
-      if (text == null || text.isEmpty) {
-        emit(state.copyWith(isTranscribing: false, error: '未识别到语音内容'));
-        return;
-      }
+      final text = await uploadAndTranscribe(
+        path: path,
+        dio: _api.dio,
+        accessToken: _api.accessToken,
+      );
 
       emit(state.copyWith(isTranscribing: false, transcribedText: text));
     } catch (e) {
