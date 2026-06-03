@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:html' as html;
 
 /// Web 平台录音服务：直接使用浏览器 MediaRecorder API
-/// 绕过 record 包的 NativeArrayBuffer 类型问题
 class VoiceServiceWeb {
   html.MediaRecorder? _recorder;
   html.Blob? _recordedBlob;
@@ -20,7 +19,6 @@ class VoiceServiceWeb {
     _duration = 0;
 
     final stream = await html.window.navigator.mediaDevices!.getUserMedia({'audio': true});
-
     _recorder = html.MediaRecorder(stream, {'mimeType': 'audio/webm'});
 
     _recorder!.addEventListener('dataavailable', (html.Event e) {
@@ -40,7 +38,6 @@ class VoiceServiceWeb {
     });
 
     _recorder!.start();
-
     _durationTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       _duration++;
     });
@@ -49,33 +46,54 @@ class VoiceServiceWeb {
   Future<List<int>?> stopRecording() async {
     _durationTimer?.cancel();
     _durationTimer = null;
-
     if (_recorder == null) return null;
 
     _recorder!.stop();
     await _stopCompleter!.future;
-
     if (_recordedBlob == null) return null;
 
-    // 用 readAsDataUrl 获取 base64，再解码为字节
-    // 避免 readAsArrayBuffer 的 NativeArrayBuffer 类型问题
-    final reader = html.FileReader();
+    // 用 XHR 获取 blob 内容，避免 FileReader 的 NativeArrayBuffer 问题
     final completer = Completer<List<int>>();
+    final xhr = html.HttpRequest();
+    xhr.open('GET', html.Url.createObjectUrlFromBlob(_recordedBlob!));
+    xhr.responseType = 'blob';
+
+    xhr.onLoad.listen((_) {
+      // xhr.response 是 Blob，再用 FileReader 读取
+      // 但用 readAsText 以 binary 方式读取，避免 ArrayBuffer
+      final responseBlob = xhr.response as html.Blob;
+      _readBlobAsBase64(responseBlob).then(completer.complete).catchError(completer.completeError);
+    });
+
+    xhr.onError.listen((_) {
+      completer.completeError('读取音频失败');
+    });
+
+    xhr.send();
+    return completer.future;
+  }
+
+  Future<List<int>> _readBlobAsBase64(html.Blob blob) async {
+    // 使用 readAsDataUrl 获取 base64 编码
+    final reader = html.FileReader();
+    final c = Completer<List<int>>();
 
     reader.onLoad.listen((_) {
-      final dataUrl = reader.result as String;
-      // data:audio/webm;base64,AAAA...
-      final base64Str = dataUrl.split(',').last;
-      final bytes = base64Decode(base64Str);
-      completer.complete(bytes);
+      try {
+        final dataUrl = reader.result as String;
+        final base64Part = dataUrl.split(',').last;
+        c.complete(base64Decode(base64Part));
+      } catch (e) {
+        c.completeError('解码音频失败: $e');
+      }
     });
 
-    reader.onError.listen((e) {
-      completer.completeError(e ?? '读取音频失败');
+    reader.onError.listen((_) {
+      c.completeError('读取音频数据失败');
     });
 
-    reader.readAsDataUrl(_recordedBlob!);
-    return completer.future;
+    reader.readAsDataUrl(blob);
+    return c.future;
   }
 
   Future<void> cancelRecording() async {
