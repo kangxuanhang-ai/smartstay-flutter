@@ -208,7 +208,6 @@ class _AIChatPageState extends State<AIChatPage> {
                                       },
                                     ),
                                   ...msg.cards.map((card) => BlocBuilder<ChatBloc, ChatState>(
-                                    buildWhen: (prev, curr) => prev.isStreaming != curr.isStreaming,
                                     builder: (context, state) {
                                       final isLastMsg = msg == state.messages.last;
                                       return ChatCardWidget(
