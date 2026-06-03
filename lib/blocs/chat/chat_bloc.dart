@@ -1,12 +1,9 @@
 import 'dart:async';
-import 'package:dio/dio.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/api_client.dart';
 import '../../core/sse_stream_handler.dart';
 import '../../models/chat_card.dart';
 import '../../services/chat_stream_service.dart';
-import '../../services/voice_service_factory.dart';
-import '../../services/audio_upload.dart';
 import 'chat_event.dart';
 import 'chat_state.dart';
 
@@ -17,20 +14,10 @@ class ChatBloc extends Bloc<Object, ChatState> {
     on<ChatSessionsLoadRequested>(_onLoadSessions);
     on<ChatSessionSwitchRequested>(_onSwitchSession);
     on<ChatNewSessionRequested>(_onNewSession);
-    on<ChatVoiceRecordStarted>(_onVoiceStart);
-    on<ChatVoiceRecordStopped>(_onVoiceStop);
-    on<ChatClearTranscribedText>((event, emit) {
-      emit(state.copyWith(clearTranscribedText: true));
-    });
-    on<ChatClearError>((event, emit) {
-      emit(state.copyWith(error: null));
-    });
   }
 
   final _api = ApiClient();
   final _streamService = ChatStreamService();
-  final _voiceService = createVoiceService();
-  Timer? _recordingTimer;
   bool _pendingNewSession = false;
 
   Future<void> _onSend(ChatMessageSent event, Emitter<ChatState> emit) async {
@@ -116,7 +103,6 @@ class ChatBloc extends Bloc<Object, ChatState> {
           retried = true;
           try {
             await _api.refreshAccessToken();
-            // Retry with fresh token
             await for (final retryEvent in _streamService.sendMessage(event.message)) {
               if (retryEvent is ChatStreamText) {
                 final idx = state.messages.indexWhere((m) => m.id == aiMsgId);
@@ -212,86 +198,9 @@ class ChatBloc extends Bloc<Object, ChatState> {
     emit(ChatState(sessions: state.sessions));
   }
 
-  void _startDurationTimer() {
-    _recordingTimer?.cancel();
-    _recordingTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      final dur = state.recordingDuration + 1;
-      if (dur >= 60) {
-        add(const ChatVoiceRecordStopped());
-      } else {
-        emit(state.copyWith(recordingDuration: dur));
-      }
-    });
-  }
-
-  Future<void> _onVoiceStart(
-    ChatVoiceRecordStarted event,
-    Emitter<ChatState> emit,
-  ) async {
-    try {
-      await _voiceService.startRecording();
-      emit(state.copyWith(isRecording: true, recordingDuration: 0, error: null));
-      _startDurationTimer();
-    } catch (e) {
-      final msg = e.toString().contains('权限') ? '请在设置中开启麦克风权限' : '录音失败，请重试';
-      emit(state.copyWith(error: msg));
-    }
-  }
-
-  Future<void> _onVoiceStop(
-    ChatVoiceRecordStopped event,
-    Emitter<ChatState> emit,
-  ) async {
-    _recordingTimer?.cancel();
-    _recordingTimer = null;
-
-    try {
-      if (_voiceService.duration < 1) {
-        _voiceService.cancelRecording();
-        emit(state.copyWith(isRecording: false, error: '录音时间太短'));
-        return;
-      }
-
-      emit(state.copyWith(isRecording: false, isTranscribing: true));
-
-      // 先尝试 Web 直接上传（stopAndUploadDirect 内部会 stop 录音）
-      final directResult = await _voiceService.stopAndUploadDirect(
-        _api.dio.options.baseUrl,
-        _api.accessToken,
-      );
-
-      if (directResult != null) {
-        emit(state.copyWith(isTranscribing: false, transcribedText: directResult));
-        return;
-      }
-
-      // Native 平台：stopRecording 获取字节
-      final bytes = await _voiceService.stopRecording();
-      if (bytes == null || bytes.isEmpty) {
-        emit(state.copyWith(isTranscribing: false, error: '录音失败，请重试'));
-        return;
-      }
-
-      final text = await uploadAndTranscribe(
-        bytes: bytes,
-        dio: _api.dio,
-        accessToken: _api.accessToken,
-      );
-
-      emit(state.copyWith(isTranscribing: false, transcribedText: text));
-    } catch (e) {
-      emit(state.copyWith(
-        isTranscribing: false,
-        error: '识别失败: $e',
-      ));
-    }
-  }
-
   @override
   Future<void> close() {
-    _recordingTimer?.cancel();
     _streamService.cancel();
-    _voiceService.dispose();
     return super.close();
   }
 }

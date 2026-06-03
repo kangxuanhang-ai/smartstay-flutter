@@ -54,10 +54,18 @@ class AuthBloc extends Bloc<Object, AuthState> {
         userId: user['id'], name: user['name'], idCard: user['id_card'],
         phone: user['phone'], role: user['role'], isFirstLogin: user['is_first_login'] == true,
       ));
+    } on DioException catch (e) {
+      // ignore: avoid_print
+      print('[AUTH] ERROR: ${e.response?.statusCode} ${e.response?.data}');
+      if (e.response?.statusCode == 403) {
+        emit(state.copyWith(status: AuthStatus.unauthenticated, error: '未查询到入住信息，请先在前台办理入住'));
+      } else {
+        emit(state.copyWith(status: AuthStatus.unauthenticated, error: '账号或密码错误'));
+      }
     } catch (e) {
       // ignore: avoid_print
       print('[AUTH] ERROR: $e');
-      emit(state.copyWith(status: AuthStatus.unauthenticated, error: '登录失败: $e'));
+      emit(state.copyWith(status: AuthStatus.unauthenticated, error: '登录失败，请重试'));
     }
   }
 

@@ -34,14 +34,21 @@ class ApiClient {
   Future<void> _onError(DioException error, ErrorInterceptorHandler handler) async {
     if (error.response?.statusCode == 401 && _refreshToken != null) {
       final req = error.requestOptions;
+      // Prevent infinite loop: if this request was already retried, stop
+      if (req.extra['_retried'] == true) {
+        await clearTokens();
+        return handler.next(error);
+      }
       if (!_isRefreshing) {
         _isRefreshing = true;
         try {
           await refreshAccessToken();
           final token = _accessToken;
           req.headers['Authorization'] = 'Bearer $token';
+          req.extra['_retried'] = true;
           for (final entry in _failedQueue) {
             entry.options.headers['Authorization'] = 'Bearer $token';
+            entry.options.extra['_retried'] = true;
             entry.handler.resolve(await dio.fetch(entry.options));
           }
           _failedQueue.clear();

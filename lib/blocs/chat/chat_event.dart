@@ -20,19 +20,3 @@ class ChatSessionSwitchRequested {
 class ChatNewSessionRequested {
   const ChatNewSessionRequested();
 }
-
-class ChatVoiceRecordStarted {
-  const ChatVoiceRecordStarted();
-}
-
-class ChatVoiceRecordStopped {
-  const ChatVoiceRecordStopped();
-}
-
-class ChatClearTranscribedText {
-  const ChatClearTranscribedText();
-}
-
-class ChatClearError {
-  const ChatClearError();
-}
