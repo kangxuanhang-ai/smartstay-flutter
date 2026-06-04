@@ -14,6 +14,7 @@ class ChatBloc extends Bloc<Object, ChatState> {
     on<ChatSessionsLoadRequested>(_onLoadSessions);
     on<ChatSessionSwitchRequested>(_onSwitchSession);
     on<ChatNewSessionRequested>(_onNewSession);
+    on<ChatWebSearchToggled>(_onToggleWebSearch);
   }
 
   final _api = ApiClient();
@@ -38,6 +39,7 @@ class ChatBloc extends Bloc<Object, ChatState> {
       isStreaming: true,
       sessions: state.sessions,
       currentSessionId: state.currentSessionId,
+      webSearchEnabled: state.webSearchEnabled,
     ));
 
     final cards = <ChatCard>[];
@@ -45,7 +47,7 @@ class ChatBloc extends Bloc<Object, ChatState> {
     final isFirstSend = _pendingNewSession;
     _pendingNewSession = false;
 
-    await for (final streamEvent in _streamService.sendMessage(event.message, newSession: isFirstSend)) {
+    await for (final streamEvent in _streamService.sendMessage(event.message, newSession: isFirstSend, webSearch: event.webSearch)) {
       if (streamEvent is ChatStreamText) {
         final idx = state.messages.indexWhere((m) => m.id == aiMsgId);
         if (idx == -1) continue;
@@ -62,6 +64,7 @@ class ChatBloc extends Bloc<Object, ChatState> {
           isStreaming: true,
           sessions: state.sessions,
           currentSessionId: state.currentSessionId,
+          webSearchEnabled: state.webSearchEnabled,
         ));
       } else if (streamEvent is ChatStreamCard) {
         cards.add(streamEvent.card);
@@ -80,6 +83,7 @@ class ChatBloc extends Bloc<Object, ChatState> {
           isStreaming: true,
           sessions: state.sessions,
           currentSessionId: state.currentSessionId,
+          webSearchEnabled: state.webSearchEnabled,
         ));
       } else if (streamEvent is ChatStreamDone) {
         final idx = state.messages.indexWhere((m) => m.id == aiMsgId);
@@ -96,6 +100,7 @@ class ChatBloc extends Bloc<Object, ChatState> {
             isStreaming: false,
             sessions: state.sessions,
             currentSessionId: state.currentSessionId,
+            webSearchEnabled: state.webSearchEnabled,
           ));
         }
       } else if (streamEvent is ChatStreamError) {
@@ -103,7 +108,7 @@ class ChatBloc extends Bloc<Object, ChatState> {
           retried = true;
           try {
             await _api.refreshAccessToken();
-            await for (final retryEvent in _streamService.sendMessage(event.message)) {
+            await for (final retryEvent in _streamService.sendMessage(event.message, webSearch: event.webSearch)) {
               if (retryEvent is ChatStreamText) {
                 final idx = state.messages.indexWhere((m) => m.id == aiMsgId);
                 if (idx == -1) continue;
@@ -117,6 +122,7 @@ class ChatBloc extends Bloc<Object, ChatState> {
                 emit(ChatState(
                   messages: msgs, isStreaming: true,
                   sessions: state.sessions, currentSessionId: state.currentSessionId,
+                  webSearchEnabled: state.webSearchEnabled,
                 ));
               } else if (retryEvent is ChatStreamCard) {
                 cards.add(retryEvent.card);
@@ -131,15 +137,16 @@ class ChatBloc extends Bloc<Object, ChatState> {
                   emit(ChatState(
                     messages: msgs, isStreaming: false,
                     sessions: state.sessions, currentSessionId: state.currentSessionId,
+                    webSearchEnabled: state.webSearchEnabled,
                   ));
                 }
               } else if (retryEvent is ChatStreamError) {
-                emit(state.copyWith(isStreaming: false, error: '登录已过期，请重新登录'));
+                emit(state.copyWith(isStreaming: false, error: '\u767b\u5f55\u5df2\u8fc7\u671f\uff0c\u8bf7\u91cd\u65b0\u767b\u5f55'));
                 return;
               }
             }
           } catch (_) {
-            emit(state.copyWith(isStreaming: false, error: '登录已过期，请重新登录'));
+            emit(state.copyWith(isStreaming: false, error: '\u767b\u5f55\u5df2\u8fc7\u671f\uff0c\u8bf7\u91cd\u65b0\u767b\u5f55'));
             return;
           }
         } else {
@@ -189,13 +196,21 @@ class ChatBloc extends Bloc<Object, ChatState> {
         messages: messages,
         currentSessionId: event.sessionId,
         sessions: state.sessions,
+        webSearchEnabled: state.webSearchEnabled,
       ));
     } catch (_) {}
   }
 
   void _onNewSession(ChatNewSessionRequested event, Emitter<ChatState> emit) {
     _pendingNewSession = true;
-    emit(ChatState(sessions: state.sessions));
+    emit(ChatState(
+      sessions: state.sessions,
+      webSearchEnabled: state.webSearchEnabled,
+    ));
+  }
+
+  void _onToggleWebSearch(ChatWebSearchToggled event, Emitter<ChatState> emit) {
+    emit(state.copyWith(webSearchEnabled: !state.webSearchEnabled));
   }
 
   @override

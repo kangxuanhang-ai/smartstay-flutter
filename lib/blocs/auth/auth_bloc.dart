@@ -113,13 +113,15 @@ class AuthBloc extends Bloc<Object, AuthState> {
       final userResp = await _api.get('/api/auth/me');
       final user = userResp.data;
       emit(AuthState(
-        status: AuthStatus.authenticated,
+        status: user['is_first_login'] == true
+            ? AuthStatus.passwordChangeRequired
+            : AuthStatus.authenticated,
         userId: user['id'],
         name: user['name'],
         idCard: user['id_card'],
         phone: user['phone'] ?? '',
         role: user['role'] ?? 'guest',
-        isFirstLogin: user['is_first_login'] ?? false,
+        isFirstLogin: user['is_first_login'] == true,
       ));
     } catch (e) {
       emit(state.copyWith(status: AuthStatus.unauthenticated, error: '刷脸登录失败'));

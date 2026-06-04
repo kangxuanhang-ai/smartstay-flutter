@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'blocs/auth/auth_bloc.dart';
@@ -15,6 +15,7 @@ import 'pages/room_control/room_control_page.dart';
 import 'pages/ai_chat/ai_chat_page.dart';
 import 'pages/work_order/work_order_page.dart';
 import 'pages/my/my_page.dart';
+import 'pages/my/bill_detail_page.dart';
 
 class AppRouter {
   final AuthBloc authBloc;
@@ -61,6 +62,7 @@ class AppRouter {
           GoRoute(path: '/facility', builder: (_, __) => const FacilityPage()),
         ],
       ),
+      GoRoute(path: '/bill-detail/:orderId', builder: (_, state) => BillDetailPage(orderId: state.pathParameters['orderId']!)),
     ],
   );
 
@@ -97,3 +99,4 @@ class _AuthListenable extends ChangeNotifier {
     super.dispose();
   }
 }
+

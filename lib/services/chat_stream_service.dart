@@ -13,17 +13,17 @@ class ChatStreamService {
   http.Client? _httpClient;
   html.HttpRequest? _webRequest;
 
-  Stream<ChatStreamEvent> sendMessage(String message, {bool newSession = false}) async* {
+  Stream<ChatStreamEvent> sendMessage(String message, {bool newSession = false, bool webSearch = false}) async* {
     final handler = SSEStreamHandler();
 
     if (kIsWeb) {
-      yield* _sendViaWeb(message, handler, newSession: newSession);
+      yield* _sendViaWeb(message, handler, newSession: newSession, webSearch: webSearch);
     } else {
-      yield* _sendViaNative(message, handler, newSession: newSession);
+      yield* _sendViaNative(message, handler, newSession: newSession, webSearch: webSearch);
     }
   }
 
-  Stream<ChatStreamEvent> _sendViaNative(String message, SSEStreamHandler handler, {bool newSession = false}) async* {
+  Stream<ChatStreamEvent> _sendViaNative(String message, SSEStreamHandler handler, {bool newSession = false, bool webSearch = false}) async* {
     final uri = Uri.parse('${_api.dio.options.baseUrl}/api/ai/chat');
     final request = http.Request('POST', uri);
     request.headers['Content-Type'] = 'application/json';
@@ -31,7 +31,7 @@ class ChatStreamService {
     if (token != null) {
       request.headers['Authorization'] = 'Bearer $token';
     }
-    request.body = jsonEncode({'message': message, 'new_session': newSession});
+    request.body = jsonEncode({'message': message, 'new_session': newSession, 'web_search': webSearch});
 
     final client = http.Client();
     _httpClient = client;
@@ -64,7 +64,7 @@ class ChatStreamService {
     }
   }
 
-  Stream<ChatStreamEvent> _sendViaWeb(String message, SSEStreamHandler handler, {bool newSession = false}) async* {
+  Stream<ChatStreamEvent> _sendViaWeb(String message, SSEStreamHandler handler, {bool newSession = false, bool webSearch = false}) async* {
     final completer = Completer<void>();
     final token = _api.accessToken;
 
@@ -111,7 +111,7 @@ class ChatStreamService {
       }
     });
 
-    request.send(jsonEncode({'message': message, 'new_session': newSession}));
+    request.send(jsonEncode({'message': message, 'new_session': newSession, 'web_search': webSearch}));
 
     yield* handler.stream;
     await completer.future;

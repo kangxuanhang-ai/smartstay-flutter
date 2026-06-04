@@ -22,6 +22,7 @@ class ChatState {
   final String? error;
   final List<Map<String, dynamic>> sessions;
   final String? currentSessionId;
+  final bool webSearchEnabled;
 
   const ChatState({
     this.messages = const [],
@@ -29,6 +30,7 @@ class ChatState {
     this.error,
     this.sessions = const [],
     this.currentSessionId,
+    this.webSearchEnabled = false,
   });
 
   ChatState copyWith({
@@ -37,6 +39,7 @@ class ChatState {
     String? error,
     List<Map<String, dynamic>>? sessions,
     String? currentSessionId,
+    bool? webSearchEnabled,
   }) {
     return ChatState(
       messages: messages ?? this.messages,
@@ -44,6 +47,7 @@ class ChatState {
       error: error,
       sessions: sessions ?? this.sessions,
       currentSessionId: currentSessionId ?? this.currentSessionId,
+      webSearchEnabled: webSearchEnabled ?? this.webSearchEnabled,
     );
   }
 }

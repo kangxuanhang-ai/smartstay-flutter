@@ -147,7 +147,14 @@ class _MyPageState extends State<MyPage> {
   Widget _buildMenuList() {
     final items = [
       (Icons.receipt_long_outlined, '我的订单', () {}),
-      (Icons.payment_outlined, '我的账单', () { context.go('/bill-detail'); }),
+      (Icons.payment_outlined, '我的账单', () {
+        if (_currentOrder != null) {
+          context.go('/bill-detail/${_currentOrder!['id']}');
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('暂无活跃订单'), backgroundColor: Colors.orange));
+        }
+      }),
       (Icons.star_outline, '我的收藏', () {}),
       (Icons.person_outline, '常用信息', () {}),
       (Icons.settings_outlined, '设置', () {}),

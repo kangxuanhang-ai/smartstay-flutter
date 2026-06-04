@@ -1,7 +1,8 @@
 class ChatMessageSent {
   final String message;
   final bool newSession;
-  const ChatMessageSent(this.message, {this.newSession = false});
+  const ChatMessageSent(this.message, {this.newSession = false, this.webSearch = false});
+  final bool webSearch;
 }
 
 class ChatStreamCancelled {
@@ -19,4 +20,8 @@ class ChatSessionSwitchRequested {
 
 class ChatNewSessionRequested {
   const ChatNewSessionRequested();
+}
+
+class ChatWebSearchToggled {
+  const ChatWebSearchToggled();
 }

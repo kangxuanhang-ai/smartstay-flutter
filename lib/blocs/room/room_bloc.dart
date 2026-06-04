@@ -2,20 +2,29 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/api_client.dart';
+import '../../core/ws_service.dart';
 import 'room_event.dart';
 import 'room_state.dart';
 
 class RoomBloc extends Bloc<Object, RoomState> {
+  final _api = ApiClient();
+  final _ws = WsService();
+  StreamSubscription? _wsSub;
+  final Map<String, Timer> _debounceTimers = {};
+
   RoomBloc() : super(const RoomState()) {
     on<RoomFetched>(_onFetched);
     on<LightToggled>(_onLightToggled);
     on<CurtainChanged>(_onCurtainChanged);
     on<ACTemperatureChanged>(_onACTemperatureChanged);
     on<ACModeToggled>(_onACModeToggled);
-  }
 
-  final _api = ApiClient();
-  final Map<String, Timer> _debounceTimers = {};
+    _wsSub = _ws.events.listen((msg) {
+      if (msg['event'] == 'device_state_change') {
+        add(RoomFetched());
+      }
+    });
+  }
 
   Future<void> _onFetched(RoomFetched event, Emitter<RoomState> emit) async {
     emit(state.copyWith(loading: true));
@@ -123,6 +132,7 @@ class RoomBloc extends Bloc<Object, RoomState> {
 
   @override
   Future<void> close() {
+    _wsSub?.cancel();
     for (final t in _debounceTimers.values) { t.cancel(); }
     return super.close();
   }
