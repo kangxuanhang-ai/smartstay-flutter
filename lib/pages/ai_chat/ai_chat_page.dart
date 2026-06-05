@@ -138,6 +138,7 @@ class _AIChatPageState extends State<AIChatPage> with TickerProviderStateMixin {
       color: const Color(0xFF1A1A2E),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     ).then((value) {
+      if (!mounted) return;
       if (value == 'copy') {
         Clipboard.setData(ClipboardData(text: msg.text));
         ScaffoldMessenger.of(context).showSnackBar(

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:dio/dio.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'api_client.dart';
 
@@ -35,10 +34,6 @@ class VoiceService {
     }
 
     try {
-      // Get temp directory for recording
-      final dir = await getTemporaryDirectory();
-      final filePath = '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.aac';
-
       // Start recording using record package
       // Note: Record package integration - simplified for now
       // In production, use: await _recorder.start(const RecordConfig(), path: filePath);
@@ -78,8 +73,7 @@ class VoiceService {
     try {
       // Stop recording and get file path
       // final path = await _recorder.stop();
-      final dir = await getTemporaryDirectory();
-      final path = '${dir.path}/voice_latest.aac';
+      final path = '${Directory.systemTemp.path}/voice_latest.aac';
 
       _state = VoiceState.transcribing;
       _stateController.add(_state);
