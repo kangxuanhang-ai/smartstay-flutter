@@ -5,16 +5,24 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/api_client.dart';
 import '../../core/sse_parser.dart';
+import '../../models/chat_card.dart';
 import 'chat_event.dart';
 import 'chat_state.dart';
+
+import 'package:http/http.dart' as http;
 
 class ChatBloc extends Bloc<Object, ChatState> {
   ChatBloc() : super(const ChatState()) {
     on<ChatMessageSent>(_onSend);
+    on<ChatWebSearchToggled>(_onToggleWebSearch);
   }
 
   final _api = ApiClient();
   StreamSubscription? _httpSub;
+
+  void _onToggleWebSearch(ChatWebSearchToggled event, Emitter<ChatState> emit) {
+    emit(state.copyWith(webSearchEnabled: !state.webSearchEnabled));
+  }
 
   Future<void> _onSend(ChatMessageSent event, Emitter<ChatState> emit) async {
     final userMsg = ChatMessage(
@@ -24,44 +32,44 @@ class ChatBloc extends Bloc<Object, ChatState> {
     final aiMsgId = 'ai_${DateTime.now().millisecondsSinceEpoch}';
 
     final messages = [...state.messages, userMsg, ChatMessage(id: aiMsgId, isUser: false)];
-    emit(ChatState(messages: messages, isStreaming: true));
+    emit(ChatState(messages: messages, isStreaming: true, webSearchEnabled: state.webSearchEnabled));
 
-    final cards = <Map<String, dynamic>>[];
+    final cards = <ChatCard>[];
 
     try {
       if (kIsWeb) {
-        // Web: ResponseType.stream 不被浏览器支持，用 plain 拿完整响应后手动解析
-        final resp = await _api.dio.post(
-          '/api/ai/chat',
-          data: {'message': event.message},
-          options: Options(responseType: ResponseType.plain),
-        );
-        if (resp.data is String) {
-          String aiText = '';
-          for (final line in (resp.data as String).split('\n')) {
-            if (!line.startsWith('data: ')) continue;
-            final jsonStr = line.substring(6);
-            try {
-              final data = jsonDecode(jsonStr) as Map<String, dynamic>;
-              if (data['type'] == 'text' && data['content'] != null) {
-                aiText += data['content'].toString();
-              } else if (data['type'] == 'card' && data['card'] != null) {
-                cards.add(data['card'] as Map<String, dynamic>);
-              }
-            } catch (_) {}
-          }
-          final idx2 = state.messages.indexWhere((m) => m.id == aiMsgId);
-          if (idx2 != -1) {
-            final msgs2 = List<ChatMessage>.from(state.messages);
-            msgs2[idx2] = ChatMessage(id: aiMsgId, isUser: false, text: aiText, cards: List.from(cards));
-            emit(ChatState(messages: msgs2, isStreaming: false));
-          }
+        // Web: 用 http 包拿完整 SSE 响应，同步解析后一次性 emit
+        final bodyStr = await _fetchSSE('/api/ai/chat', event.message, state.webSearchEnabled);
+        String aiText = '';
+        for (final line in bodyStr.split('\n')) {
+          if (!line.startsWith('data: ')) continue;
+          final jsonStr = line.substring(6).trim();
+          if (jsonStr.isEmpty) continue;
+          try {
+            final data = jsonDecode(jsonStr) as Map<String, dynamic>;
+            if (data['type'] == 'text' && data['content'] != null) {
+              aiText += data['content'].toString();
+            } else if (data['type'] == 'card' && data['card'] != null) {
+              cards.add(ChatCard.fromJson(data['card'] as Map<String, dynamic>));
+            }
+          } catch (_) {}
+        }
+        final idx2 = state.messages.indexWhere((m) => m.id == aiMsgId);
+        if (idx2 != -1) {
+          final msgs2 = List<ChatMessage>.from(state.messages);
+          msgs2[idx2] = ChatMessage(id: aiMsgId, isUser: false, text: aiText, cards: List.from(cards));
+          emit(ChatState(messages: msgs2, isStreaming: false));
+        } else {
+          // 兜底：即使找不到原消息，也 emit 一条新消息
+          final msgs2 = List<ChatMessage>.from(state.messages);
+          msgs2.add(ChatMessage(id: aiMsgId, isUser: false, text: aiText, cards: List.from(cards)));
+          emit(ChatState(messages: msgs2, isStreaming: false));
         }
       } else {
         // 移动端：ResponseType.stream 原生支持
         final resp = await _api.dio.post(
           '/api/ai/chat',
-          data: {'message': event.message},
+          data: {'message': event.message, 'web_search': state.webSearchEnabled},
           options: Options(responseType: ResponseType.stream),
         );
 
@@ -97,7 +105,7 @@ class ChatBloc extends Bloc<Object, ChatState> {
           }
 
           if (sseEvent.type == 'card' && sseEvent.data != null) {
-            cards.add(sseEvent.data!['card'] as Map<String, dynamic>);
+            cards.add(ChatCard.fromJson(sseEvent.data!['card'] as Map<String, dynamic>));
             msgs[idx] = ChatMessage(
               id: aiMsgId, isUser: false, text: msgs[idx].text, cards: List.from(cards),
             );
@@ -131,5 +139,20 @@ class ChatBloc extends Bloc<Object, ChatState> {
   Future<void> close() {
     _httpSub?.cancel();
     return super.close();
+  }
+
+  /// Web 端用 http 包拿 SSE 响应，避免 Dio 兼容问题
+  Future<String> _fetchSSE(String path, String message, bool webSearch) async {
+    final baseUrl = _api.dio.options.baseUrl;
+    final token = _api.accessToken ?? '';
+    final resp = await http.post(
+      Uri.parse('$baseUrl$path'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({'message': message, 'web_search': webSearch}),
+    );
+    return resp.body;
   }
 }

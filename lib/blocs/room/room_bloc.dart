@@ -18,11 +18,16 @@ class RoomBloc extends Bloc<Object, RoomState> {
     on<CurtainChanged>(_onCurtainChanged);
     on<ACTemperatureChanged>(_onACTemperatureChanged);
     on<ACModeToggled>(_onACModeToggled);
+    // 兜底：忽略所有未注册的事件类型（WebSocket 消息在 Web 端是 JS 对象）
+    on<Object>((event, emit) {});
 
     _wsSub = _ws.events.listen((msg) {
-      if (msg['event'] == 'device_state_change') {
-        add(RoomFetched());
-      }
+      try {
+        final Map<String, dynamic>? evt = msg is Map ? Map<String, dynamic>.from(msg) : null;
+        if (evt?['event'] == 'device_state_change') {
+          add(RoomFetched());
+        }
+      } catch (_) {}
     });
   }
 
