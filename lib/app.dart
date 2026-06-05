@@ -16,6 +16,7 @@ import 'pages/ai_chat/ai_chat_page.dart';
 import 'pages/work_order/work_order_page.dart';
 import 'pages/my/my_page.dart';
 import 'pages/my/bill_detail_page.dart';
+import 'pages/ai_chat/preference_panel_page.dart';
 
 class AppRouter {
   final AuthBloc authBloc;
@@ -63,6 +64,7 @@ class AppRouter {
         ],
       ),
       GoRoute(path: '/bill-detail/:orderId', builder: (_, state) => BillDetailPage(orderId: state.pathParameters['orderId']!)),
+      GoRoute(path: '/ai-chat/preferences', builder: (_, __) => const PreferencePanelPage()),
     ],
   );
 
