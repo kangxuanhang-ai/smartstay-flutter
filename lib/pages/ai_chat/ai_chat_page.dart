@@ -14,6 +14,8 @@ import '../../widgets/chat_card.dart';
 import '../../widgets/error_card.dart';
 import '../../widgets/quick_chips.dart';
 import '../../widgets/typing_indicator.dart';
+import '../../widgets/voice_wave_animation.dart';
+import '../../core/voice_service.dart';
 import 'session_list_page.dart';
 
 class AIChatPage extends StatefulWidget {
@@ -66,7 +68,7 @@ class _AIChatPageState extends State<AIChatPage> with TickerProviderStateMixin {
     _SlashCommand('空调', '帮我调节空调温度', Icons.thermostat, '设备'),
     _SlashCommand('灯光', '帮我控制灯光', Icons.lightbulb, '设备'),
     _SlashCommand('窗帘', '帮我控制窗帘', Icons.curtains, '设备'),
-    _SlashCommand('退房', '我想办理退房', Icons.hotel_checkout, '流程'),
+    _SlashCommand('退房', '我想办理退房', Icons.logout, '流程'),
     _SlashCommand('延迟', '我想延迟退房', Icons.schedule, '流程'),
     _SlashCommand('账单', '查看我的账单', Icons.receipt_long, '查询'),
     _SlashCommand('发票', '我想开发票', Icons.receipt, '查询'),
@@ -622,24 +624,69 @@ class _AIChatPageState extends State<AIChatPage> with TickerProviderStateMixin {
                   ),
                 );
               }
+              if (state.isRecording) {
+                return Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const VoiceWaveAnimation(isActive: true),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${state.recordingDuration}s',
+                      style: const TextStyle(fontSize: 12, color: _errorRed, fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                );
+              }
               return GestureDetector(
-                onLongPressStart: (_) {
-                  // TODO: start voice recording
+                onLongPressStart: (_) async {
+                  final voiceService = VoiceService.instance;
+                  final started = await voiceService.startRecording();
+                  if (started && mounted) {
+                    // Update UI via stream
+                    voiceService.durationStream.listen((duration) {
+                      if (mounted) {
+                        // Duration updates handled by bloc
+                      }
+                    });
+                  }
                 },
-                onLongPressEnd: (_) {
-                  // TODO: stop voice recording
+                onLongPressEnd: (_) async {
+                  final voiceService = VoiceService.instance;
+                  final audioPath = await voiceService.stopRecording();
+                  if (audioPath != null && mounted) {
+                    // Transcribe
+                    final text = await voiceService.transcribe(audioPath);
+                    if (text != null && text.isNotEmpty && mounted) {
+                      _textCtrl.text = text;
+                      _textCtrl.selection = TextSelection.fromPosition(
+                        TextPosition(offset: text.length),
+                      );
+                    } else if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: const Text('未识别到语音，请再试一次'),
+                          backgroundColor: const Color(0xFF1A1A2E),
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                      );
+                    }
+                  } else if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: const Text('录音时间太短'),
+                        backgroundColor: const Color(0xFF1A1A2E),
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    );
+                  }
+                  voiceService.resetToIdle();
                 },
                 child: Container(
                   width: 40, height: 40,
-                  decoration: BoxDecoration(
-                    color: state.isRecording ? _errorRed.withOpacity(0.2) : _card,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    state.isRecording ? Icons.mic : Icons.mic_none,
-                    color: state.isRecording ? _errorRed : _muted,
-                    size: 20,
-                  ),
+                  decoration: const BoxDecoration(color: _card, shape: BoxShape.circle),
+                  child: const Icon(Icons.mic_none, color: _muted, size: 20),
                 ),
               );
             },
