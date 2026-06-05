@@ -278,7 +278,8 @@ class _ChatCardWidgetState extends State<ChatCardWidget>
       _ProgressStep('completed', '已完成', Icons.task_alt),
     ];
 
-    final currentIdx = steps.indexWhere((s) => s.key == status);
+    var currentIdx = steps.indexWhere((s) => s.key == status);
+    if (currentIdx < 0) currentIdx = 0; // fallback to first step
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
@@ -368,9 +369,10 @@ class _ChatCardWidgetState extends State<ChatCardWidget>
     final suggestedPrice = (meta['suggested_price'] as num?)?.toDouble() ?? 0;
     final reason = meta['reason'] as String? ?? '';
 
-    if (currentPrice == 0 && suggestedPrice == 0) return const SizedBox.shrink();
+    if (currentPrice <= 0 && suggestedPrice <= 0) return const SizedBox.shrink();
 
     final maxPrice = currentPrice > suggestedPrice ? currentPrice : suggestedPrice;
+    if (maxPrice <= 0) return const SizedBox.shrink();
     final changePercent = currentPrice > 0
         ? ((suggestedPrice - currentPrice) / currentPrice * 100)
         : 0;

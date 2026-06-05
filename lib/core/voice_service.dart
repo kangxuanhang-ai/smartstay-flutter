@@ -73,7 +73,7 @@ class VoiceService {
     try {
       // Stop recording and get file path
       // final path = await _recorder.stop();
-      final path = '${Directory.systemTemp.path}/voice_latest.aac';
+      final path = '${Directory.systemTemp.path}/voice_${DateTime.now().millisecondsSinceEpoch}.aac';
 
       _state = VoiceState.transcribing;
       _stateController.add(_state);

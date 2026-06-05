@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import '../../models/chat_card.dart';
 
 class ChatMessage {
@@ -24,25 +23,31 @@ class ChatError {
   final String title;
   final String message;
   final String? actionLabel;
-  final VoidCallback? onAction;
   final String? secondaryLabel;
-  final VoidCallback? onSecondary;
 
   const ChatError({
     required this.type,
     required this.title,
     required this.message,
     this.actionLabel,
-    this.onAction,
     this.secondaryLabel,
-    this.onSecondary,
   });
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ChatError &&
+          type == other.type &&
+          title == other.title &&
+          message == other.message;
+
+  @override
+  int get hashCode => type.hashCode ^ title.hashCode ^ message.hashCode;
 }
 
 class ChatState {
   final List<ChatMessage> messages;
   final bool isStreaming;
-  final String? error;
   final ChatError? chatError;
   final List<Map<String, dynamic>> sessions;
   final String? currentSessionId;
@@ -54,7 +59,6 @@ class ChatState {
   const ChatState({
     this.messages = const [],
     this.isStreaming = false,
-    this.error,
     this.chatError,
     this.sessions = const [],
     this.currentSessionId,
@@ -67,7 +71,6 @@ class ChatState {
   ChatState copyWith({
     List<ChatMessage>? messages,
     bool? isStreaming,
-    String? error,
     ChatError? chatError,
     bool clearChatError = false,
     List<Map<String, dynamic>>? sessions,
@@ -80,7 +83,6 @@ class ChatState {
     return ChatState(
       messages: messages ?? this.messages,
       isStreaming: isStreaming ?? this.isStreaming,
-      error: error,
       chatError: clearChatError ? null : (chatError ?? this.chatError),
       sessions: sessions ?? this.sessions,
       currentSessionId: currentSessionId ?? this.currentSessionId,

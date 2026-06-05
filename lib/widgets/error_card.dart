@@ -1,13 +1,24 @@
 import 'package:flutter/material.dart';
-import '../blocs/chat/chat_state.dart';
 
 class ErrorCardWidget extends StatefulWidget {
-  final ChatError error;
+  final String type;
+  final String title;
+  final String message;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+  final String? secondaryLabel;
+  final VoidCallback? onSecondary;
   final VoidCallback? onDismiss;
 
   const ErrorCardWidget({
     super.key,
-    required this.error,
+    required this.type,
+    required this.title,
+    required this.message,
+    this.actionLabel,
+    this.onAction,
+    this.secondaryLabel,
+    this.onSecondary,
     this.onDismiss,
   });
 
@@ -44,8 +55,6 @@ class _ErrorCardWidgetState extends State<ErrorCardWidget>
 
   @override
   Widget build(BuildContext context) {
-    final error = widget.error;
-
     return FadeTransition(
       opacity: _fadeAnim,
       child: SlideTransition(
@@ -56,14 +65,11 @@ class _ErrorCardWidgetState extends State<ErrorCardWidget>
             color: const Color(0xFF1A1A2E),
             borderRadius: BorderRadius.circular(16),
             border: Border(
-              left: BorderSide(
-                color: _getColor(error.type),
-                width: 3,
-              ),
+              left: BorderSide(color: _getColor(widget.type), width: 3),
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.2),
+                color: Colors.black.withValues(alpha: 0.2),
                 blurRadius: 12,
                 offset: const Offset(0, 4),
               ),
@@ -76,17 +82,10 @@ class _ErrorCardWidgetState extends State<ErrorCardWidget>
               children: [
                 Row(
                   children: [
-                    Icon(_getIcon(error.type), color: _getColor(error.type), size: 20),
+                    Icon(_getIcon(widget.type), color: _getColor(widget.type), size: 20),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: Text(
-                        error.title,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
+                      child: Text(widget.title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white)),
                     ),
                     if (widget.onDismiss != null)
                       GestureDetector(
@@ -96,46 +95,38 @@ class _ErrorCardWidgetState extends State<ErrorCardWidget>
                   ],
                 ),
                 const SizedBox(height: 8),
-                Text(
-                  error.message,
-                  style: const TextStyle(fontSize: 13, color: Color(0xFF9CA3AF), height: 1.4),
-                ),
-                if (error.actionLabel != null || error.secondaryLabel != null) ...[
+                Text(widget.message, style: const TextStyle(fontSize: 13, color: Color(0xFF9CA3AF), height: 1.4)),
+                if (widget.actionLabel != null || widget.secondaryLabel != null) ...[
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      if (error.secondaryLabel != null) ...[
+                      if (widget.secondaryLabel != null) ...[
                         OutlinedButton(
-                          onPressed: error.onSecondary,
+                          onPressed: widget.onSecondary,
                           style: OutlinedButton.styleFrom(
                             foregroundColor: const Color(0xFF9CA3AF),
                             side: const BorderSide(color: Color(0xFF374151)),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                           ),
-                          child: Text(error.secondaryLabel!, style: const TextStyle(fontSize: 13)),
+                          child: Text(widget.secondaryLabel!, style: const TextStyle(fontSize: 13)),
                         ),
                         const SizedBox(width: 8),
                       ],
-                      if (error.actionLabel != null)
+                      if (widget.actionLabel != null)
                         Container(
                           decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
-                            ),
+                            gradient: const LinearGradient(colors: [Color(0xFF667EEA), Color(0xFF764BA2)]),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Material(
                             color: Colors.transparent,
                             child: InkWell(
-                              onTap: error.onAction,
+                              onTap: widget.onAction,
                               borderRadius: BorderRadius.circular(20),
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                                child: Text(
-                                  error.actionLabel!,
-                                  style: const TextStyle(fontSize: 13, color: Colors.white, fontWeight: FontWeight.w500),
-                                ),
+                                child: Text(widget.actionLabel!, style: const TextStyle(fontSize: 13, color: Colors.white, fontWeight: FontWeight.w500)),
                               ),
                             ),
                           ),
