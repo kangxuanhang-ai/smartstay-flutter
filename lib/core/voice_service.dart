@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:record/record.dart';
 import 'api_client.dart';
 
 enum VoiceState { idle, recording, transcribing, error }
@@ -10,6 +12,7 @@ class VoiceService {
   static final VoiceService instance = VoiceService._();
   VoiceService._();
 
+  final _recorder = AudioRecorder();
   VoiceState _state = VoiceState.idle;
   VoiceState get state => _state;
 
@@ -25,18 +28,37 @@ class VoiceService {
 
   // ── Start Recording ──
   Future<bool> startRecording() async {
-    // Check microphone permission
-    final permission = await Permission.microphone.request();
-    if (!permission.isGranted) {
-      _state = VoiceState.error;
-      _stateController.add(_state);
-      return false;
+    // Check microphone permission (skip on web - browser handles it)
+    if (!kIsWeb) {
+      final permission = await Permission.microphone.request();
+      if (!permission.isGranted) {
+        _state = VoiceState.error;
+        _stateController.add(_state);
+        return false;
+      }
     }
 
     try {
-      // Start recording using record package
-      // Note: Record package integration - simplified for now
-      // In production, use: await _recorder.start(const RecordConfig(), path: filePath);
+      // Check if recorder has permission
+      if (!await _recorder.hasPermission()) {
+        _state = VoiceState.error;
+        _stateController.add(_state);
+        return false;
+      }
+
+      // Start recording
+      final config = RecordConfig(
+        encoder: AudioEncoder.aacLc,
+        sampleRate: 16000,
+        numChannels: 1,
+      );
+
+      // Generate unique path (on web this is a virtual identifier)
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final path = kIsWeb
+          ? 'voice_$timestamp'
+          : '${Directory.systemTemp.path}/voice_$timestamp.aac';
+      await _recorder.start(config, path: path);
 
       _durationSeconds = 0;
       _durationTimer = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -71,10 +93,7 @@ class VoiceService {
     }
 
     try {
-      // Stop recording and get file path
-      // final path = await _recorder.stop();
-      final path = '${Directory.systemTemp.path}/voice_${DateTime.now().millisecondsSinceEpoch}.aac';
-
+      final path = await _recorder.stop();
       _state = VoiceState.transcribing;
       _stateController.add(_state);
       return path;
@@ -89,16 +108,36 @@ class VoiceService {
   Future<String?> transcribe(String audioPath) async {
     try {
       final api = ApiClient();
-      final formData = FormData.fromMap({
-        'file': await MultipartFile.fromFile(audioPath),
-      });
+
+      MultipartFile file;
+      if (kIsWeb) {
+        // Web: audioPath is a blob URL, need to fetch and convert
+        // For web, we'd need to use http to fetch the blob
+        // Simplified: the record package on web returns a URL
+        // We'll need to handle this differently on web
+        final dio = Dio();
+        final response = await dio.get<List<int>>(
+          audioPath,
+          options: Options(responseType: ResponseType.bytes),
+        );
+        file = MultipartFile.fromBytes(
+          response.data!,
+          filename: 'voice.wav',
+        );
+      } else {
+        file = await MultipartFile.fromFile(audioPath);
+      }
+
+      final formData = FormData.fromMap({'file': file});
       final resp = await api.post('/api/ai/asr', data: formData);
       final text = resp.data['text'] as String?;
 
-      // Delete temp file
-      try {
-        File(audioPath).deleteSync();
-      } catch (_) {}
+      // Delete temp file (native only)
+      if (!kIsWeb) {
+        try {
+          File(audioPath).deleteSync();
+        } catch (_) {}
+      }
 
       _state = VoiceState.idle;
       _stateController.add(_state);
@@ -113,7 +152,9 @@ class VoiceService {
   // ── Cancel Recording ──
   Future<void> cancelRecording() async {
     _durationTimer?.cancel();
-    // await _recorder.stop();
+    try {
+      await _recorder.stop();
+    } catch (_) {}
     _state = VoiceState.idle;
     _stateController.add(_state);
   }
@@ -127,6 +168,7 @@ class VoiceService {
 
   void dispose() {
     _durationTimer?.cancel();
+    _recorder.dispose();
     _stateController.close();
     _durationController.close();
   }

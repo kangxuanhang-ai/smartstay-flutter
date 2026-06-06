@@ -20,6 +20,7 @@ class ChatBloc extends Bloc<Object, ChatState> {
     on<ChatRegenerate>(_onRegenerate);
     on<ChatErrorDismissed>(_onDismissError);
     on<ChatVoiceRecordingStarted>(_onVoiceStart);
+    on<ChatVoiceDurationUpdated>(_onVoiceDurationUpdate);
     on<ChatVoiceRecordingStopped>(_onVoiceStop);
     on<ChatVoiceRecordingCancelled>(_onVoiceCancel);
     on<ChatVoiceTranscribeRequested>(_onVoiceTranscribe);
@@ -85,9 +86,13 @@ class ChatBloc extends Bloc<Object, ChatState> {
     _voiceDurationSub?.cancel();
     _voiceDurationSub = _voiceService.durationStream.listen((duration) {
       if (!isClosed) {
-        add(ChatVoiceRecordingStarted()); // re-trigger to update duration
+        add(ChatVoiceDurationUpdated(duration));
       }
     });
+  }
+
+  void _onVoiceDurationUpdate(ChatVoiceDurationUpdated event, Emitter<ChatState> emit) {
+    emit(state.copyWith(recordingDuration: event.duration));
   }
 
   void _onVoiceStop(ChatVoiceRecordingStopped event, Emitter<ChatState> emit) {

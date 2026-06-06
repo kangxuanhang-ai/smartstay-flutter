@@ -89,13 +89,6 @@ class _AIChatPageState extends State<AIChatPage> with TickerProviderStateMixin {
     }
     _voiceStarted = true;
     context.read<ChatBloc>().add(const ChatVoiceRecordingStarted());
-
-    // Forward duration updates to BLoC
-    voiceService.durationStream.listen((duration) {
-      if (mounted) {
-        context.read<ChatBloc>().add(const ChatVoiceRecordingStarted());
-      }
-    });
   }
 
   Future<void> _stopVoice(BuildContext context) async {
