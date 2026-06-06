@@ -52,9 +52,6 @@ class ChatState {
   final List<Map<String, dynamic>> sessions;
   final String? currentSessionId;
   final bool webSearchEnabled;
-  final bool isRecording;
-  final int recordingDuration;
-  final bool isTranscribing;
 
   const ChatState({
     this.messages = const [],
@@ -63,9 +60,6 @@ class ChatState {
     this.sessions = const [],
     this.currentSessionId,
     this.webSearchEnabled = false,
-    this.isRecording = false,
-    this.recordingDuration = 0,
-    this.isTranscribing = false,
   });
 
   ChatState copyWith({
@@ -76,9 +70,6 @@ class ChatState {
     List<Map<String, dynamic>>? sessions,
     String? currentSessionId,
     bool? webSearchEnabled,
-    bool? isRecording,
-    int? recordingDuration,
-    bool? isTranscribing,
   }) {
     return ChatState(
       messages: messages ?? this.messages,
@@ -87,9 +78,6 @@ class ChatState {
       sessions: sessions ?? this.sessions,
       currentSessionId: currentSessionId ?? this.currentSessionId,
       webSearchEnabled: webSearchEnabled ?? this.webSearchEnabled,
-      isRecording: isRecording ?? this.isRecording,
-      recordingDuration: recordingDuration ?? this.recordingDuration,
-      isTranscribing: isTranscribing ?? this.isTranscribing,
     );
   }
 }

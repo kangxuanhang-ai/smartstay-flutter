@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/api_client.dart';
 import '../../core/sse_stream_handler.dart';
-import '../../core/voice_service.dart';
 import '../../models/chat_card.dart';
 import '../../services/chat_stream_service.dart';
 import 'chat_event.dart';
@@ -19,18 +18,11 @@ class ChatBloc extends Bloc<Object, ChatState> {
     on<ChatWebSearchToggled>(_onToggleWebSearch);
     on<ChatRegenerate>(_onRegenerate);
     on<ChatErrorDismissed>(_onDismissError);
-    on<ChatVoiceRecordingStarted>(_onVoiceStart);
-    on<ChatVoiceDurationUpdated>(_onVoiceDurationUpdate);
-    on<ChatVoiceRecordingStopped>(_onVoiceStop);
-    on<ChatVoiceRecordingCancelled>(_onVoiceCancel);
-    on<ChatVoiceTranscribeRequested>(_onVoiceTranscribe);
   }
 
   final _api = ApiClient();
   final _streamService = ChatStreamService();
-  final _voiceService = VoiceService.instance;
   bool _pendingNewSession = false;
-  StreamSubscription<int>? _voiceDurationSub;
 
   // ── Error Classification ──
   ChatError _classifyError(Object error, [int? statusCode]) {
@@ -68,53 +60,14 @@ class ChatBloc extends Bloc<Object, ChatState> {
 
   int? _extractStatusCode(Object error) {
     final str = error.toString();
-    // Match HTTP status code patterns like "401", "statusCode: 403"
     final match = RegExp(r'(?:status|code)[:\s]*(\d{3})').firstMatch(str);
     if (match != null) return int.tryParse(match.group(1)!);
-    // Match standalone status codes at word boundaries
     if (RegExp(r'\b401\b').hasMatch(str)) return 401;
     if (RegExp(r'\b403\b').hasMatch(str)) return 403;
     if (RegExp(r'\b500\b').hasMatch(str)) return 500;
     if (RegExp(r'\b502\b').hasMatch(str)) return 502;
     if (RegExp(r'\b503\b').hasMatch(str)) return 503;
     return null;
-  }
-
-  // ── Voice Handlers ──
-  void _onVoiceStart(ChatVoiceRecordingStarted event, Emitter<ChatState> emit) {
-    emit(state.copyWith(isRecording: true, recordingDuration: 0));
-    _voiceDurationSub?.cancel();
-    _voiceDurationSub = _voiceService.durationStream.listen((duration) {
-      if (!isClosed) {
-        add(ChatVoiceDurationUpdated(duration));
-      }
-    });
-  }
-
-  void _onVoiceDurationUpdate(ChatVoiceDurationUpdated event, Emitter<ChatState> emit) {
-    emit(state.copyWith(recordingDuration: event.duration));
-  }
-
-  void _onVoiceStop(ChatVoiceRecordingStopped event, Emitter<ChatState> emit) {
-    _voiceDurationSub?.cancel();
-    emit(state.copyWith(isRecording: false, isTranscribing: true));
-  }
-
-  void _onVoiceCancel(ChatVoiceRecordingCancelled event, Emitter<ChatState> emit) {
-    _voiceDurationSub?.cancel();
-    emit(state.copyWith(isRecording: false, isTranscribing: false, recordingDuration: 0));
-  }
-
-  Future<void> _onVoiceTranscribe(ChatVoiceTranscribeRequested event, Emitter<ChatState> emit) async {
-    try {
-      final text = await _voiceService.transcribe(event.audioPath);
-      emit(state.copyWith(isTranscribing: false));
-      if (text != null && text.isNotEmpty) {
-        add(ChatMessageSent(text, webSearch: state.webSearchEnabled));
-      }
-    } catch (_) {
-      emit(state.copyWith(isTranscribing: false));
-    }
   }
 
   // ── Send Message ──
@@ -289,13 +242,7 @@ class ChatBloc extends Bloc<Object, ChatState> {
 
   void _onNewSession(ChatNewSessionRequested event, Emitter<ChatState> emit) {
     _pendingNewSession = true;
-    emit(state.copyWith(
-      messages: [],
-      clearChatError: true,
-      isRecording: false,
-      isTranscribing: false,
-      recordingDuration: 0,
-    ));
+    emit(state.copyWith(messages: [], clearChatError: true));
   }
 
   void _onToggleWebSearch(ChatWebSearchToggled event, Emitter<ChatState> emit) {
@@ -325,7 +272,6 @@ class ChatBloc extends Bloc<Object, ChatState> {
 
   @override
   Future<void> close() {
-    _voiceDurationSub?.cancel();
     _streamService.cancel();
     return super.close();
   }

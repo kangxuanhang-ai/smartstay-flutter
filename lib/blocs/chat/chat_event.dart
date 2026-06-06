@@ -33,25 +33,3 @@ class ChatRegenerate {
 class ChatErrorDismissed {
   const ChatErrorDismissed();
 }
-
-class ChatVoiceRecordingStarted {
-  const ChatVoiceRecordingStarted();
-}
-
-class ChatVoiceDurationUpdated {
-  final int duration;
-  const ChatVoiceDurationUpdated(this.duration);
-}
-
-class ChatVoiceRecordingStopped {
-  const ChatVoiceRecordingStopped();
-}
-
-class ChatVoiceRecordingCancelled {
-  const ChatVoiceRecordingCancelled();
-}
-
-class ChatVoiceTranscribeRequested {
-  final String audioPath;
-  const ChatVoiceTranscribeRequested(this.audioPath);
-}

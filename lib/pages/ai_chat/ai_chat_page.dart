@@ -14,8 +14,6 @@ import '../../widgets/chat_card.dart';
 import '../../widgets/error_card.dart';
 import '../../widgets/quick_chips.dart';
 import '../../widgets/typing_indicator.dart';
-import '../../widgets/voice_wave_animation.dart';
-import '../../core/voice_service.dart';
 import 'session_list_page.dart';
 
 class AIChatPage extends StatefulWidget {
@@ -67,57 +65,6 @@ class _AIChatPageState extends State<AIChatPage> with TickerProviderStateMixin {
   static const _blue = Color(0xFF2563eb);
   static const _muted = Color(0xFF9ca3af);
   static const _errorRed = Color(0xFFef4444);
-
-  // ── Voice Helpers ──
-  bool _voiceStarted = false;
-
-  Future<void> _startVoice(BuildContext context) async {
-    final voiceService = VoiceService.instance;
-    final started = await voiceService.startRecording();
-    if (!started || !mounted) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('请在系统设置中允许麦克风权限'),
-            backgroundColor: const Color(0xFFEF4444),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
-      }
-      return;
-    }
-    _voiceStarted = true;
-    context.read<ChatBloc>().add(const ChatVoiceRecordingStarted());
-  }
-
-  Future<void> _stopVoice(BuildContext context) async {
-    if (!_voiceStarted) return;
-    _voiceStarted = false;
-
-    final voiceService = VoiceService.instance;
-    final bloc = context.read<ChatBloc>();
-
-    bloc.add(const ChatVoiceRecordingStopped());
-    final audioPath = await voiceService.stopRecording();
-
-    if (audioPath == null) {
-      bloc.add(const ChatVoiceRecordingCancelled());
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('录音时间太短'),
-            backgroundColor: const Color(0xFF1A1A2E),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
-      }
-      return;
-    }
-
-    bloc.add(ChatVoiceTranscribeRequested(audioPath));
-  }
 
   // ── Slash Commands ──
   static const _commands = [
@@ -663,48 +610,11 @@ class _AIChatPageState extends State<AIChatPage> with TickerProviderStateMixin {
       ),
       child: Row(
         children: [
-          // Mic button
-          BlocBuilder<ChatBloc, ChatState>(
-            buildWhen: (prev, curr) =>
-                prev.isRecording != curr.isRecording ||
-                prev.isTranscribing != curr.isTranscribing ||
-                prev.recordingDuration != curr.recordingDuration,
-            builder: (context, state) {
-              if (state.isTranscribing) {
-                return Container(
-                  width: 40, height: 40,
-                  decoration: const BoxDecoration(color: _card, shape: BoxShape.circle),
-                  child: const Padding(
-                    padding: EdgeInsets.all(10),
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF60a5fa)),
-                  ),
-                );
-              }
-              if (state.isRecording) {
-                return GestureDetector(
-                  onLongPressEnd: (_) => _stopVoice(context),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const VoiceWaveAnimation(isActive: true),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${state.recordingDuration}s',
-                        style: const TextStyle(fontSize: 12, color: _errorRed, fontWeight: FontWeight.w600),
-                      ),
-                    ],
-                  ),
-                );
-              }
-              return GestureDetector(
-                onLongPressStart: (_) => _startVoice(context),
-                child: Container(
-                  width: 40, height: 40,
-                  decoration: const BoxDecoration(color: _card, shape: BoxShape.circle),
-                  child: const Icon(Icons.mic_none, color: _muted, size: 20),
-                ),
-              );
-            },
+          // Mic button (placeholder)
+          Container(
+            width: 40, height: 40,
+            decoration: const BoxDecoration(color: _card, shape: BoxShape.circle),
+            child: const Icon(Icons.mic_none, color: _muted, size: 20),
           ),
           const SizedBox(width: 8),
           // Text field
